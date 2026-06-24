@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block meta-title %}<meta name="og:title" content="Photo Archive" />{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Photo Archive Results' subtitle='Filtered photo archive records.' eyebrow='Archives' %}
+<main class="container-xl page-section"><div class="d-flex justify-content-between align-items-center mb-4"><h2 class="section-title h4 mb-0">{{ woreda }} Woreda Photo Archives</h2><a class="btn btn-outline-dark rounded-pill" href="{% url 'archive-photo' %}">Back to photo archive</a></div><div class="row g-4">{% for item in page %}{% include 'public_partials/photo_archive_card.html' with item=item only %}{% empty %}<div class="col-12"><div class="context-box">Photo archives were not found for {{ woreda }} woreda.</div></div>{% endfor %}</div>{% include 'public_partials/pagination.html' with page=page only %}</main>
+{% endblock %}

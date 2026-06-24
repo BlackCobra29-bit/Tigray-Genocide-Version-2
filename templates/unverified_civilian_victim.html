@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Unidentified Civilian Victims' subtitle='Unidentified civilian victim records pending verification.' eyebrow='Pending verification' %}
+<main class="container-xl page-section">
+  <div class="glass p-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+      <div>
+        <h2 class="section-title h4 mb-1">Unidentified Civilian Victims</h2>
+        <div class="small-note">Total civilians represented: {{ total_civilians|intcomma }}</div>
+      </div>
+    </div>
+
+    <form
+      class="row g-2 mb-3"
+      method="get"
+      action="{% url 'unverified-civilian-victim' %}"
+      hx-get="{% url 'unverified-civilian-victim' %}"
+      hx-target="#unverified-results"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+      hx-indicator="#unverified-filter-spinner"
+      hx-trigger="submit, change from:select"
+    >
+      <div class="col-12 col-md-5">
+        <select class="form-select" name="atrocity" aria-label="Filter by atrocity">
+          <option value="">All atrocities</option>
+          {% for value, label in atrocity_choices %}
+            <option value="{{ value }}"{% if filters.atrocity == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-5">
+        <select class="form-select" name="woreda" aria-label="Filter by woreda">
+          <option value="">All woredas</option>
+          {% for woreda in woreda_list %}
+            <option value="{{ woreda.woreda_name }}"{% if filters.woreda == woreda.woreda_name %} selected{% endif %}>{{ woreda.woreda_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-dark flex-grow-1">Apply</button>
+        <a class="btn btn-outline-dark" href="{% url 'unverified-civilian-victim' %}">Reset</a>
+        <span id="unverified-filter-spinner" class="spinner-border spinner-border-sm align-self-center" aria-hidden="true"></span>
+      </div>
+    </form>
+
+    <div id="unverified-results" aria-live="polite">
+      {% include 'public_partials/unverified_results.html' %}
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block extra_head %}
+<style>
+  #unverified-filter-spinner { display: none; }
+  #unverified-filter-spinner.htmx-request { display: inline-block; }
+</style>
+{% endblock %}

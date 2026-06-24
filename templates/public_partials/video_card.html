@@ -1,0 +1,10 @@
+<div class="col-12 col-md-6 col-xl-4" data-aos="fade-up">
+  <article class="video-card p-3 h-100">
+    <a class="ratio ratio-16x9 mb-3 d-block" href="{% url 'watch-video' item.id %}">
+      <iframe src="https://www.youtube.com/embed/{% with video_id=item.online_link|cut:'https://www.youtube.com/watch?v=' %}{{ video_id }}{% endwith %}" title="Video archive item" allowfullscreen loading="lazy"></iframe>
+    </a>
+    <a class="fw-bold d-block mb-2" href="{% url 'watch-video' item.id %}">{% if item.location %}{{ item.location }}{% else %}Video Archive{% endif %}</a>
+    <div class="small-note mb-2"><span class="mi">calendar_today</span>{% if item.date_of_event %}{{ item.date_of_event|date:"d-M-Y" }}{% else %}Undated{% endif %}</div>
+    <div class="small-note">{{ item.description|truncatechars:180 }}</div>
+  </article>
+</div>

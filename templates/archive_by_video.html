@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block meta-title %}<meta name="og:title" content="Video Archive" />{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Video Archives' subtitle='Recorded evidence and broadcast clips.' eyebrow='Archives' %}
+<main class="container-xl page-section"><div class="row g-4">{% for item in page %}{% include 'public_partials/video_card.html' with item=item only %}{% empty %}<div class="col-12"><div class="context-box">No video archives were found.</div></div>{% endfor %}</div>{% include 'public_partials/pagination.html' with page=page only %}</main>
+{% endblock %}

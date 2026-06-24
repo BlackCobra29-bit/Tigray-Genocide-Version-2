@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% load custom %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title=item.full_name subtitle='Verified civilian victim record.' eyebrow='Victim profile' %}
+<main class="container-xl page-section">
+  <div class="row g-4 align-items-start">
+    <div class="col-12 col-lg-4"><article class="profile-card glass p-3"><img class="profile-photo" src="{{ item.picture.url }}" alt="{{ item.full_name }}" /><a class="btn btn-outline-dark rounded-pill mt-3 w-100" href="{% url 'civilian-victim-photo-page' %}">Back to gallery</a></article></div>
+    <div class="col-12 col-lg-8"><article class="glass p-4"><h2 class="section-title h4 mb-3">{{ item.full_name|title }}</h2><dl class="detail-list"><dt>Gender</dt><dd>{{ item.gender }}</dd><dt>Age</dt><dd>{% if item.age %}{{ item.age }}{% else %}Unknown{% endif %}</dd><dt>Atrocity</dt><dd>{{ item.perpetrator }}</dd><dt>Place of Killing</dt><dd>{% if item.place_of_killing %}{{ item.place_of_killing }}{% else %}Unknown{% endif %}</dd><dt>Woreda</dt><dd>{{ item.woreda }}</dd><dt>Zone</dt><dd>{{ item.zone }}</dd><dt>Date of Event</dt><dd>{% if item.date_of_event %}{{ item.date_of_event|date:"d-M-Y" }}{% else %}Undated{% endif %}</dd><dt>Source</dt><dd>{% include 'public_partials/source_links.html' with obj=item only %}</dd><dt>Remark</dt><dd>{% if item.remark %}{{ item.remark|urlize }}{% else %}Unknown{% endif %}</dd></dl></article></div>
+  </div>
+</main>
+{% endblock %}

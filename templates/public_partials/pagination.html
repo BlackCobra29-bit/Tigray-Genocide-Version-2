@@ -1,0 +1,15 @@
+{% if page and page.paginator.num_pages > 1 %}
+<nav class="pagination-wrap" aria-label="Pagination">
+  <div class="btn-group" role="group">
+    {% if page.has_previous %}
+      <a class="btn btn-outline-dark btn-sm" href="?page=1">First</a>
+      <a class="btn btn-outline-dark btn-sm" href="?page={{ page.previous_page_number }}">Previous</a>
+    {% endif %}
+    <span class="btn btn-outline-dark btn-sm disabled">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+      <a class="btn btn-outline-dark btn-sm" href="?page={{ page.next_page_number }}">Next</a>
+      <a class="btn btn-outline-dark btn-sm" href="?page={{ page.paginator.num_pages }}">Last</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}

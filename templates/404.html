@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Page Not Found - Tigray Genocide Digital Archive{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Page Not Found' subtitle='The page you requested could not be found.' eyebrow='404' %}
+<main class="container-xl page-section"><div class="glass p-5 text-center"><h1 class="display-4 fw-bold">404</h1><p class="small-note mb-4">The requested archive page does not exist or has moved.</p><a class="btn btn-accent rounded-pill px-4" href="{% url 'app-index' %}">Return home</a></div></main>
+{% endblock %}

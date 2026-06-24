@@ -1,0 +1,20 @@
+<title>{{ document_title }}</title>
+<meta name="description" content="{{ meta_description }}" />
+<meta name="keywords" content="{{ meta_keywords }}" />
+<link rel="canonical" href="{{ canonical_url }}" />
+<meta name="robots" content="{{ robots }}" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:site_name" content="{{ SITE_NAME }}" />
+<meta property="og:title" content="{{ og_title }}" />
+<meta property="og:description" content="{{ og_description }}" />
+<meta property="og:image" content="{{ og_image }}" />
+<meta property="og:url" content="{{ og_url }}" />
+<meta property="og:type" content="{{ og_type }}" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{{ og_title }}" />
+<meta name="twitter:description" content="{{ og_description }}" />
+<meta name="twitter:image" content="{{ og_image }}" />
+{% if author %}<meta name="author" content="{{ author }}" />{% endif %}
+{% if published %}<meta property="article:published_time" content="{{ published }}" />{% endif %}
+{% if modified %}<meta property="article:modified_time" content="{{ modified }}" />{% endif %}
+{% if json_ld %}{{ json_ld|safe }}{% endif %}

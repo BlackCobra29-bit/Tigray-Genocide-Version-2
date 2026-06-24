@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+*.pot
+*.pyc
+local_settings.py
+db.sqlite3
+db.sqlite3.*
+media/
+staticfiles/
+
+# Environments
+venv/
+ENV/
+env/
+.venv/
+
+# VS Code
+.vscode/
+
+# Editor temp files
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Backup files
+*~
+
+# PyCharm
+.idea/
+
+# Node / npm
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

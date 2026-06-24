@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block meta-title %}<meta name="og:title" content="Analysis Articles" />{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Analysis Articles' subtitle='Filtered analysis article category.' eyebrow='Analysis' %}
+<main class="container-xl page-section"><div class="row g-4">{% for article in page %}{% include 'public_partials/article_card.html' with article=article only %}{% empty %}<div class="col-12"><div class="context-box">No analysis articles were found.</div></div>{% endfor %}</div>{% include 'public_partials/pagination.html' with page=page only %}</main>
+{% endblock %}

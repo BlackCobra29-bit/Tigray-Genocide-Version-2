@@ -1,0 +1,18 @@
+pillow
+django
+FROALA_Editor
+folium
+captcha_form
+django-simple-captcha
+PLotly
+
+# search more
+
+
+
+# to be change
+# SYstem email
+# System email login address link
+# django-simple-captcha public and private key
+
+

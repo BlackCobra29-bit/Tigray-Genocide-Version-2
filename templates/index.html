@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block body_class %}home-page{% endblock %}
+{% block meta-title %}<meta name="og:title" content="Tigray Genocide Homepage" />{% endblock %}
+{% block page-content %}
+<header class="w-100 px-0 hero-header">
+  <div class="hero hero-centered px-0">
+    <img class="hero-bg" src="{% static 'new-template/asset/img/hero-image.png' %}" alt="Tigray genocide archive hero image" />
+    <div class="hero-shade" aria-hidden="true"></div>
+    <div class="hero-gridlines" aria-hidden="true"></div>
+    <div class="container-xl hero-stage">
+      <div class="hero-content">
+        <div class="hero-eyebrow"><span class="hero-live-dot" aria-hidden="true"></span>Evidence, memorial, and accountability archive</div>
+        <h1 class="hero-title mb-3">
+          <span class="hero-title-line">Tigray Genocide</span>
+          <span class="hero-title-line" lang="ti">ትግራይ ጂኖሳይድ</span>
+        </h1>
+        <p class="hero-sub mb-4">Verified civilian victim records, infrastructure damage, media evidence, and witness documentation preserved for remembrance, research, and justice.</p>
+        <div class="hero-actions">
+          <a class="btn btn-accent rounded-pill px-4" href="{% url 'civilian-victim-photo-page' %}">Browse Victims</a>
+          <a class="hero-video-link" href="{% url 'archive-video' %}" aria-label="Watch video archive"><span class="hero-video-icon mi" aria-hidden="true">play_arrow</span><span>Watch Video</span></a>
+        </div>
+      </div>
+    </div>
+    <div class="hero-bottom-strip" aria-label="Archive coverage">
+      <div class="container-xl hero-strip-grid">
+        <span><span class="mi">location_on</span>Western, Central, Eastern, Southern, North Western, Mekelle</span>
+        <span><span class="mi">shield</span>Documentation for research and accountability</span>
+        <span><span class="mi">photo_library</span>Photo, video, and memorial registry records</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="container-xl counter-cards" aria-label="Archive counters">
+  <div class="counter-shell"><div class="counter-grid">
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_civilian|intcomma }}</p><span class="counter-icon mi">verified</span></div><p class="counter-label">Verified Civilian Victims</p><p class="counter-meta">Memorial registry</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_unverified_civilian|intcomma }}</p><span class="counter-icon mi">person_search</span></div><p class="counter-label">Unidentified Civilian Victims</p><p class="counter-meta">Pending verification</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_articles|intcomma }}</p><span class="counter-icon mi">article</span></div><p class="counter-label">Analysis Articles</p><p class="counter-meta">Editorial desk</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_panel|intcomma }}</p><span class="counter-icon mi">forum</span></div><p class="counter-label">Webinar Discussions</p><p class="counter-meta">Panel records</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_photo|intcomma }}</p><span class="counter-icon mi">photo_library</span></div><p class="counter-label">Photo Archives</p><p class="counter-meta">Evidence media</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_video|intcomma }}</p><span class="counter-icon mi">smart_display</span></div><p class="counter-label">Video Archives</p><p class="counter-meta">Broadcast records</p></div></article>
+  </div></div>
+</section>
+
+<section class="container-xl analytics-wrap" id="analytics">
+  <div class="glass p-4" data-aos="fade-up">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3"><div><h2 class="h4 section-title mb-1">Dynamic Live Report</h2><div class="small-note">Charts draw from the current database where available.</div></div></div>
+    <div class="row g-4">
+      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Victims by Zone</h3><canvas id="zoneChart" data-values="{{ line_data_points|join:',' }}"></canvas></div></div>
+      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Age</h3><canvas id="ageChart" data-values="{{ bar_data_points|join:',' }}"></canvas></div></div>
+      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Atrocity Distribution</h3><canvas id="casualtyPieChart"></canvas></div></div>
+      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Gender</h3><canvas id="genderDonutChart"></canvas></div></div>
+    </div>
+  </div>
+</section>
+
+<main class="container-xl mt-5" id="browse">
+  <section class="victim-section p-3 p-md-4 mt-4" id="victim-gallery">
+    <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between mb-3">
+      <div><h2 class="h4 section-title mb-1">Browse Victims</h2><div class="small-note" id="memorialResultsCount">Showing 0 victims</div></div>
+      <a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'civilian-victim-photo-page' %}">View full registry</a>
+    </div>
+    <div class="registry-toolbar mb-3"><div class="row g-2"><div class="col-12 col-lg-8"><input id="memorialSearch" class="form-control" type="search" placeholder="Search victim name, zone, woreda, or perpetrator" /></div><div class="col-12 col-lg-4"><select id="zoneFilter" class="form-select"><option value="">All zones</option><option value="central tigray">Central Tigray</option><option value="eastern tigray">Eastern Tigray</option><option value="mekelle special">Mekelle Special</option><option value="north western tigray">North Western Tigray</option><option value="other">Other</option><option value="south eastern tigray">South Eastern Tigray</option><option value="southern tigray">Southern Tigray</option><option value="western tigray">Western Tigray</option></select></div></div></div>
+    <div class="row g-3" id="memorialGrid">{% for victim in civilian_victims %}{% include 'public_partials/victim_card.html' with victim=victim only %}{% empty %}<div class="col-12"><div class="context-box">No verified civilian victim records were found.</div></div>{% endfor %}</div>
+  </section>
+
+  <section class="mt-5" id="photo-gallery">
+    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Photo Archives</h2><div class="small-note">Recent evidence media</div></div><a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'archive-photo' %}">All photos</a></div>
+    <div class="row g-4">{% for item in photo_archives %}{% include 'public_partials/photo_archive_card.html' with item=item only %}{% empty %}<div class="col-12"><div class="context-box">No photo archives were found.</div></div>{% endfor %}</div>
+  </section>
+
+  <section class="mt-5" id="analysis-articles">
+    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Analysis Articles</h2><div class="small-note">Recent commentary and documentation analysis</div></div><a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'app-articles-page' %}">All articles</a></div>
+    <div class="row g-4">{% for article in analysis_articles %}{% include 'public_partials/article_card.html' with article=article only %}{% empty %}<div class="col-12"><div class="context-box">No analysis articles were found.</div></div>{% endfor %}</div>
+  </section>
+
+  <section class="mt-5 mb-5" id="video-archives">
+    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Video Archives</h2><div class="small-note">Recorded evidence and broadcast clips</div></div><a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'archive-video' %}">All videos</a></div>
+    <div class="row g-4">{% for item in video_archives %}{% include 'public_partials/video_card.html' with item=item only %}{% empty %}<div class="col-12"><div class="context-box">No video archives were found.</div></div>{% endfor %}</div>
+  </section>
+</main>
+{% endblock %}

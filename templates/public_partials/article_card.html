@@ -1,0 +1,15 @@
+<div class="col-12 col-md-6 col-xl-4" data-aos="fade-up">
+  <article class="content-card h-100">
+    <a href="{% url 'view-article' article.id %}" class="d-block">
+      <img class="content-card-img" src="{{ article.thumbnail.url }}" alt="{{ article.title|striptags }}" loading="lazy" />
+    </a>
+    <div class="content-card-body">
+      <div class="small-note mb-2"><span class="mi">calendar_today</span>{{ article.date_created|date:"d-M-Y" }}</div>
+      <h2 class="content-card-title"><a href="{% url 'view-article' article.id %}">{{ article.title }}</a></h2>
+      <div class="d-flex align-items-center gap-2 mt-3 small-note">
+        {% if article.author.administrator.admin_photo %}<img class="author-avatar" src="{{ article.author.administrator.admin_photo.url }}" alt="{{ article.author.first_name }} {{ article.author.last_name }}" />{% endif %}
+        <span>{{ article.author.first_name }} {{ article.author.last_name }}</span>
+      </div>
+    </div>
+  </article>
+</div>

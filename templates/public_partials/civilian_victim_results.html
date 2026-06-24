@@ -1,0 +1,25 @@
+{% load humanize %}
+<div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-2">
+  <div class="small-note">
+    Showing {{ page.start_index|intcomma }}&ndash;{{ page.end_index|intcomma }} of {{ filtered_count|intcomma }} record{{ filtered_count|pluralize }}
+  </div>
+  <div class="small-note">10 records per page</div>
+</div>
+
+{% include 'public_partials/victim_table.html' with victims=page.object_list row_offset=page_offset only %}
+
+{% if page.paginator.num_pages > 1 %}
+  <nav class="pagination-wrap mt-3" aria-label="Civilian victim pages">
+    <div class="btn-group flex-wrap" role="group">
+      {% if page.has_previous %}
+        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page=1">First</a>
+        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>
+      {% endif %}
+      <span class="btn btn-outline-dark btn-sm disabled" aria-current="page">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>
+        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.paginator.num_pages }}">Last</a>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}

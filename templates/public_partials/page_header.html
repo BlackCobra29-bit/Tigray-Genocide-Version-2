@@ -1,0 +1,12 @@
+{% load static %}
+<header class="page-hero">
+  <img class="page-hero-bg" src="{% static 'new-template/asset/img/hero-image2.png' %}" alt="Tigray archive background" />
+  <div class="hero-shade" aria-hidden="true"></div>
+  <div class="hero-gridlines" aria-hidden="true"></div>
+  <div class="container-xl page-hero-content">
+    <div class="hero-eyebrow"><span class="hero-live-dot" aria-hidden="true"></span>{{ eyebrow|default:"Digital archive" }}</div>
+    <h1 class="page-title">{{ title }}</h1>
+    {% if subtitle %}<p class="page-subtitle">{{ subtitle }}</p>{% endif %}
+    <nav class="breadcrumb-line" aria-label="Breadcrumb"><a href="{% url 'app-index' %}">Home</a><span class="mi" aria-hidden="true">chevron_right</span><span aria-current="page">{{ title }}</span></nav>
+  </div>
+</header>

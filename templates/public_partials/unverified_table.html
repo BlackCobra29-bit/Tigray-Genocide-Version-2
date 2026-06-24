@@ -1,0 +1,23 @@
+{% load humanize %}
+<div class="table-responsive archive-table-wrap">
+  <table class="table archive-table filter-table" id="datatable2">
+    <thead>
+      <tr><th>#</th><th>Location</th><th>Number</th><th>Atrocity</th><th>Woreda</th><th>Source</th><th>Remark</th></tr>
+    </thead>
+    <tbody>
+      {% for victim in victims %}
+      <tr data-atrocity="{{ victim.perpetrator|lower }}" data-woreda="{{ victim.woreda|lower }}">
+        <td>{% if row_offset != None %}{{ row_offset|add:forloop.counter }}{% else %}{{ forloop.counter }}{% endif %}</td>
+        <td>{{ victim.location }}</td>
+        <td>{{ victim.number_of_civilian|intcomma }}</td>
+        <td>{{ victim.perpetrator }}</td>
+        <td>{{ victim.woreda }}</td>
+        <td>{% include 'public_partials/source_links.html' with obj=victim only %}</td>
+        <td>{% if victim.remark %}{{ victim.remark|urlize }}{% else %}<span class="text-muted">Unknown</span>{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-center py-4">No unidentified civilian victim records were found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

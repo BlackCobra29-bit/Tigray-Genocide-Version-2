@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static humanize %}
+{% block meta-title %}<meta name="og:title" content="Verified Civilian Victims by Photo" />{% endblock %}
+{% block extra_head %}
+<link rel="preconnect" href="https://unpkg.com" crossorigin />
+<style>
+  .photo-victim-grid + .photo-victim-grid { margin-top: 0; }
+  .photo-victim-grid > .memorial-item { width: 20%; }
+  .load-more-button .htmx-indicator { display: none; }
+  .load-more-button.htmx-request .load-more-label { display: none; }
+  .load-more-button.htmx-request .htmx-indicator { display: inline-block; }
+  .load-more-button.htmx-request { min-width: 10rem; pointer-events: none; }
+  #photo-filter-spinner { display: none; }
+  #photo-filter-spinner.htmx-request { display: inline-block; }
+  @media (max-width: 1199.98px) {
+    .photo-victim-grid > .memorial-item { width: 33.333333%; }
+  }
+  @media (max-width: 767.98px) {
+    .photo-victim-grid > .memorial-item { width: 50%; }
+  }
+</style>
+{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Tigray Genocide Virtual Museum' subtitle='Browse verified civilian victims by photo, name, atrocity, or woreda.' eyebrow='Memorial gallery' %}
+<main class="container-xl page-section">
+  <section class="victim-section p-3 p-md-4">
+    <div class="d-flex justify-content-end mb-3">
+      <a class="text-link" href="{% url 'civilian_victims_by_name' %}">Switch to table view</a>
+    </div>
+
+    <form
+      class="row g-2 mb-4"
+      method="get"
+      action="{% url 'civilian-victim-photo-page' %}"
+      hx-get="{% url 'civilian-victim-photo-page' %}"
+      hx-target="#memorialGrid"
+      hx-swap="innerHTML"
+      hx-push-url="true"
+      hx-indicator="#photo-filter-spinner"
+      hx-trigger="submit, change from:select"
+    >
+      <div class="col-12 col-lg-4">
+        <input class="form-control" type="search" name="name" value="{{ filters.name }}" placeholder="Search by name" aria-label="Search by name" />
+      </div>
+      <div class="col-12 col-lg-3">
+        <select class="form-select" name="atrocity" aria-label="Filter by atrocity">
+          <option value="">All atrocities</option>
+          {% for value, label in atrocity_choices %}
+            <option value="{{ value }}"{% if filters.atrocity == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-lg-3">
+        <select class="form-select" name="woreda" aria-label="Filter by woreda">
+          <option value="">All woredas</option>
+          {% for woreda in woreda_list %}
+            <option value="{{ woreda.woreda_name }}"{% if filters.woreda == woreda.woreda_name %} selected{% endif %}>{{ woreda.woreda_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-lg-2 d-flex gap-2">
+        <button class="btn btn-dark flex-grow-1" type="submit">Search</button>
+        <a class="btn btn-outline-dark" href="{% url 'civilian-victim-photo-page' %}">Reset</a>
+        <span id="photo-filter-spinner" class="spinner-border spinner-border-sm htmx-indicator align-self-center" aria-hidden="true"></span>
+      </div>
+    </form>
+
+    <div id="memorialGrid">
+      {% include 'public_partials/victim_photo_batch.html' %}
+    </div>
+  </section>
+</main>
+{% endblock %}

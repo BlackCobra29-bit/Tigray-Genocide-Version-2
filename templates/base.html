@@ -1,0 +1,110 @@
+{% load static seo_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  {% block head_seo %}{% seo_meta schema_type="website" %}{% endblock %}
+  <link rel="icon" href="{% static SITE_LOGO_STATIC %}" type="image/png" />
+  <link rel="apple-touch-icon" href="{% static SITE_LOGO_STATIC %}" />
+  <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet" />
+  <link href="{% static 'vendor/aos/aos.css' %}" rel="stylesheet" />
+  <link href="{% static 'new-template/vendor/fonts/fonts.css' %}" rel="stylesheet" />
+  <link href="{% static 'new-template/asset/styles.css' %}" rel="stylesheet" />
+  <script src="https://unpkg.com/htmx.org@2.0.8/dist/htmx.min.js" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header>
+    <nav class="navbar navbar-expand-lg nav-blur" aria-label="Primary">
+      <div class="container-xl py-2">
+        <a class="navbar-brand me-3" href="{% url 'app-index' %}">
+          <img class="nav-logo" src="{% static SITE_LOGO_STATIC %}" alt="{{ SITE_NAME }} logo" />
+        </a>
+        <button class="navbar-toggler border-0 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="mi fs-2">menu</span>
+        </button>
+        <div class="collapse navbar-collapse" id="navMain">
+          <ul class="navbar-nav w-100 align-items-lg-center gap-2 gap-lg-3 mt-3 mt-lg-0">
+            <li class="nav-item"><a class="nav-link nav-chip" href="{% url 'app-index' %}"><span class="nav-mi">home</span>Home</a></li>
+            <li class="nav-item dropdown">
+              <a class="nav-link nav-chip dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="nav-mi">groups</span>Civilian Victims</a>
+              <ul class="dropdown-menu dropdown-menu-dark">
+                <li><a class="dropdown-item" href="{% url 'civilian_victims_by_name' %}">By Name</a></li>
+                <li><a class="dropdown-item" href="{% url 'civilian-victim-photo-page' %}">By Photo</a></li>
+                <li><a class="dropdown-item" href="{% url 'civilian-victim-map-page' %}">By Location</a></li>
+                <li><a class="dropdown-item" href="{% url 'unverified-civilian-victim' %}">Unidentified Victims</a></li>
+                <li><a class="dropdown-item" href="{% url 'send-information' %}">Submit Victim Information</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link nav-chip dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="nav-mi">analytics</span>Analysis</a>
+              <ul class="dropdown-menu dropdown-menu-dark">
+                <li><a class="dropdown-item" href="{% url 'app-articles-page' %}">Analysis Articles</a></li>
+                <li><a class="dropdown-item" href="{% url 'webinar-discussion-page' %}">Panel Discussions</a></li>
+              </ul>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link nav-chip dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><span class="nav-mi">inventory_2</span>Archives</a>
+              <ul class="dropdown-menu dropdown-menu-dark">
+                <li><a class="dropdown-item" href="{% url 'archive-photo' %}">Photo Archives</a></li>
+                <li><a class="dropdown-item" href="{% url 'archive-video' %}">Video Archives</a></li>
+                <li><a class="dropdown-item" href="{% url 'send-archive' %}">Submit Archives</a></li>
+              </ul>
+            </li>
+            <li class="nav-item"><a class="nav-link nav-chip" href="{% url 'about-us' %}"><span class="nav-mi">info</span>About Us</a></li>
+            <li class="nav-item"><a class="nav-link nav-chip" href="{% url 'contact-us' %}"><span class="nav-mi">mail</span>Contact Us</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <div id="page-navigation-indicator" class="page-navigation-indicator" role="progressbar" aria-label="Loading page">
+    <span class="page-navigation-progress" aria-hidden="true"></span>
+  </div>
+
+  <div id="page-content" hx-history-elt>
+    {% block page-content %}{% endblock %}
+  </div>
+
+  <footer class="site-footer py-5" id="contact">
+    <div class="container-xl">
+      <div class="row g-4">
+        <div class="col-lg-5">
+          <div class="footer-title mb-2">{{ SITE_NAME }}</div>
+          <p class="footer-meta mb-0">A memorial and documentation archive preserving testimonies, media evidence, and verified records.</p>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="footer-title mb-2">Quick Links</div>
+          <nav class="d-flex flex-column gap-2" aria-label="Footer">
+            <a class="footer-link" href="{% url 'civilian-victim-photo-page' %}">Browse Victims</a>
+            <a class="footer-link" href="{% url 'archive-photo' %}">Photo Archive</a>
+            <a class="footer-link" href="{% url 'app-articles-page' %}">Analysis</a>
+          </nav>
+        </div>
+        <div class="col-6 col-lg-4">
+          <div class="footer-title mb-2">Contact</div>
+          <div class="d-flex flex-column gap-2 footer-meta">
+            <a class="footer-link" href="mailto:tigraygenocide@tigraygenocide.com"><span class="mi me-1">mail</span>tigraygenocide@tigraygenocide.com</a>
+            <a class="footer-link" href="mailto:tigraygenocide11@gmail.com"><span class="mi me-1">mail</span>tigraygenocide11@gmail.com</a>
+            <span><span class="mi me-1">shield</span>Documentation for research and accountability</span>
+          </div>
+        </div>
+      </div>
+      <hr class="hr-soft my-4" />
+      <div class="d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center footer-meta">
+        <div>&copy; <span id="footerYear"></span> {{ SITE_NAME }}. All rights reserved.</div>
+        <div>Evidence, memorial, and accountability archive</div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'vendor/aos/aos.js' %}"></script>
+  <script src="{% static 'new-template/asset/main.js' %}"></script>
+  <div id="page-assets" class="page-assets">
+    {% block extra_head %}{% endblock %}
+    {% block extra_scripts %}{% endblock %}
+  </div>
+</body>
+</html>

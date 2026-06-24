@@ -1,0 +1,19 @@
+{% load static %}
+<div class="col-12 col-md-6 col-xl-4" data-aos="fade-up">
+  <article class="photo-card h-100">
+    <a href="{{ item.photo.url }}" target="_blank" rel="noopener">
+      {% if item.graphic %}
+        <img class="photo-media" src="{% static 'new-template/asset/img/default.png' %}" alt="Graphic archive placeholder" loading="lazy" decoding="async" />
+      {% else %}
+        <img class="photo-media" src="{{ item.photo.url }}" alt="Photo archive item" loading="lazy" decoding="async" />
+      {% endif %}
+    </a>
+    <div class="photo-body">
+      <div class="photo-meta-row">
+        <span class="photo-meta-item"><span class="mi">location_on</span>{% if item.location %}{{ item.location }}, {% endif %}{{ item.woreda }} Woreda</span>
+        <span class="photo-meta-item photo-date"><span class="mi">calendar_today</span>{% if item.date_of_event %}{{ item.date_of_event|date:"d-M-Y" }}{% else %}Undated{% endif %}</span>
+      </div>
+      <p class="photo-copy">{{ item.description|urlize }}</p>
+    </div>
+  </article>
+</div>

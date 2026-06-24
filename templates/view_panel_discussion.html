@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Panel Discussion' subtitle=item.webinar_title eyebrow='Webinar record' %}
+<main class="container-xl page-section"><div class="row g-4"><div class="col-12 col-lg-8"><article class="glass p-4 article-detail"><h1 class="h3 section-title mb-3">{{ item.webinar_title }}</h1><div class="small-note mb-4"><span class="mi">person</span>{{ item.author.first_name }} {{ item.author.last_name }} <span class="mx-2">/</span><span class="mi">calendar_today</span>{{ item.date_created|date:"d-M-Y" }}</div><div class="rich-content">{{ item.webinar_content|safe }}</div></article></div>{% if item.webinar_video_url %}<aside class="col-12 col-lg-4"><div class="glass p-3"><h2 class="h6 fw-bold mb-3">Panel Video</h2><div class="ratio ratio-16x9"><iframe src="https://www.youtube.com/embed/{% with video_id=item.webinar_video_url|cut:'https://www.youtube.com/watch?v=' %}{{ video_id }}{% endwith %}" allowfullscreen loading="lazy"></iframe></div></div></aside>{% endif %}</div></main>
+{% endblock %}

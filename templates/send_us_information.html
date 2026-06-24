@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block meta-title %}<meta name="og:title" content="Submit Information on Civilian Victims" />{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Submit Victim Information' subtitle='Share information about Tigrayan civilian victims so their stories can be documented and preserved.' eyebrow='Submit information' %}
+
+<main class="container-xl page-section">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="context-box mb-4">
+        <div class="d-flex gap-3 align-items-start">
+          <span class="mi fs-3" aria-hidden="true">shield</span>
+          <div>
+            <h2 class="h5 mb-2">Civilian Victim Information Submission Form</h2>
+            <ul class="mb-3" lang="ti">
+              <li>ዝኾነ መረጃታት ብዛዕባ ንጹሃት ሲቪላት ክትልእኩልና ትኽእሉ ኢኹም። ኣብቲ ዝርዝር ዘየለዉ ወይ መረጃኦም ዘይተማልአ ግዳያት እንተፈሊጥኩም ነዚ ቅጥዒ ተጠቐሙ።</li>
+              <li>መረጃኹም ዝያዳ ምሉእ እንተኾይኑ ንምርግጋጽ ይሕግዘና፤ እንተዘይፈለጥኩም ግን እቲ ዝፈለጥኩምዎ መረጃ ጥራይ ልኣኹ።</li>
+              <li>እትህብዎ መረጃ ሓቀኛን ዝተረጋገጸን ክኸውን ኣለዎ።</li>
+              <li>ኩሉ ዝተላእከ መረጃ ብኣማሓዳሪ እቲ መርበብ ድሕሪ ምርግጋጽ ይዝርጋሕ።</li>
+            </ul>
+            <p class="mb-1">You can send us information regarding Tigrayan civilian victims using the form provided below.</p>
+            <p class="mb-0">Please be assured that the sender's information will not be disclosed publicly without explicit consent.</p>
+          </div>
+        </div>
+      </div>
+
+      <form id="sendForm" action="{% url 'send-information' %}" method="POST" enctype="multipart/form-data" class="row g-4" data-parsley-validate>
+        {% csrf_token %}
+
+        <section class="glass p-4">
+          <div class="mb-4">
+            <div class="small-note mb-1">Step 1 of 2</div>
+            <h2 class="h4 section-title mb-1">Sender Information</h2>
+            <p class="small-note mb-0">Fields marked with an asterisk (*) are required.</p>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="sender_fullname">Sender Full Name *</label>
+              <input id="sender_fullname" type="text" class="form-control" name="sender_fullname" autocomplete="name" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="sender_address">Sender Address *</label>
+              <input id="sender_address" type="text" class="form-control" name="sender_address" autocomplete="street-address" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="sender_email">Sender Email *</label>
+              <input id="sender_email" type="email" class="form-control" name="sender_email" autocomplete="email" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="sender_phone">Sender Phone *</label>
+              <input id="sender_phone" type="tel" class="form-control" name="sender_phone" autocomplete="tel" required />
+            </div>
+          </div>
+
+          <hr class="hr-soft my-4" />
+
+          <div class="mb-4">
+            <div class="small-note mb-1">Step 2 of 2</div>
+            <h2 class="h4 section-title mb-1">Civilian Victim Information</h2>
+            <p class="small-note mb-0">Provide as much accurate information as is available.</p>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label" for="first_name">First Name *</label>
+              <input id="first_name" type="text" class="form-control" name="first_name" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="middle_name">Middle Name *</label>
+              <input id="middle_name" type="text" class="form-control" name="middle_name" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="last_name">Last Name *</label>
+              <input id="last_name" type="text" class="form-control" name="last_name" required />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="gender">Gender *</label>
+              <select id="gender" class="form-select" name="gender" required>
+                <option value="">Select gender</option>
+                {% for value, label in gender_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="age">Age</label>
+              <input id="age" type="number" min="0" max="130" class="form-control" name="age" inputmode="numeric" />
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="perpetrator">Atrocity *</label>
+              <select id="perpetrator" class="form-select" name="perpetrator" required>
+                <option value="">Select atrocity</option>
+                {% for value, label in atrocity_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="woreda">Woreda *</label>
+              <select id="woreda" class="form-select" name="woreda" required>
+                <option value="">Select woreda</option>
+                {% for woreda_name in woreda_names %}<option value="{{ woreda_name }}">{{ woreda_name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="place">Place of Killing</label>
+              <input id="place" type="text" class="form-control" name="place" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="date_of_event">Date of Event (Optional)</label>
+              <input id="date_of_event" type="date" class="form-control" name="date_of_event" />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="photo">Victim Photo</label>
+              <input id="photo" type="file" class="form-control" name="photo" accept="image/*" />
+              <div class="form-text">Upload a clear photograph when one is available.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="remark">Additional Information</label>
+              <textarea id="remark" class="form-control" name="remark" rows="5" placeholder="Add relevant context, sources, or details that may help verification."></textarea>
+            </div>
+          </div>
+        </section>
+
+        <div class="col-12 d-flex flex-column flex-sm-row justify-content-between gap-3 align-items-sm-center">
+          <p class="small-note mb-0">Please review the information carefully before submitting.</p>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-dark rounded-pill" onclick="window.history.back()">Back</button>
+            <button type="submit" class="btn btn-accent rounded-pill px-4" id="submit-btn">Submit Information</button>
+          </div>
+        </div>
+        <div class="col-12"><div id="formStatus" class="form-status" role="status" aria-live="polite" hidden></div></div>
+      </form>
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block extra_head %}
+<style>
+  #sendForm .form-control.parsley-error,
+  #sendForm .form-select.parsley-error {
+    border-color: #ff3b30;
+    background-color: #fff1f0;
+    box-shadow: none;
+  }
+
+  #sendForm .form-control.parsley-error:focus,
+  #sendForm .form-select.parsley-error:focus {
+    border-color: #ff3b30;
+    box-shadow: 0 0 0 .2rem rgba(255, 59, 48, .14);
+  }
+
+  #sendForm .parsley-errors-list {
+    color: #ff2d20;
+    font-size: .95rem;
+    line-height: 1.25;
+    list-style: none;
+    margin: .3rem 0 0;
+    padding: 0;
+  }
+
+  #sendForm .parsley-errors-list li {
+    margin: 0;
+  }
+</style>
+{% endblock %}
+{% block extra_scripts %}
+<script src="{% static 'admlte/js/jquery.min.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/parsley.js/2.9.2/parsley.min.js"></script>
+<script>
+  $('#sendForm').parsley({ trigger: 'change' });
+  attachAjaxForm(
+    'sendForm',
+    'submit-btn',
+    'formStatus',
+    'Information submitted successfully. It will be reviewed before publication.',
+    'Failed to submit information. Please check the form and try again.'
+  );
+</script>
+{% endblock %}

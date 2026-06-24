@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block meta-title %}<meta name="og:title" content="Verified Civilian Victims by Name" />{% endblock %}
+{% block page-content %}
+{% include 'public_partials/page_header.html' with title='Verified Civilian Victims by Name' subtitle='A searchable compilation of verified civilian victim records.' eyebrow='Memorial registry' %}
+<main class="container-xl page-section">
+  <div class="glass p-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+      <div>
+        <h2 class="section-title h4 mb-1">Verified Civilian Victims</h2>
+        <div class="small-note">
+          Total records: {{ total_count|intcomma }}{% if filtered_count != total_count %} &middot; Matches: {{ filtered_count|intcomma }}{% endif %}
+        </div>
+      </div>
+      <a class="btn btn-outline-dark rounded-pill" href="{% url 'civilian-victim-photo-page' %}">Photo view</a>
+    </div>
+
+    <form method="get" class="row g-2 mb-3" id="victim-filters" aria-label="Filter civilian victims">
+      <div class="col-12 col-md-3">
+        <input class="form-control" name="name" value="{{ filters.name }}" type="search" placeholder="Filter by name" aria-label="Filter by name" />
+      </div>
+      <div class="col-12 col-md-3">
+        <select class="form-select" name="atrocity" aria-label="Filter by atrocity">
+          <option value="">All atrocities</option>
+          {% for value, label in atrocity_choices %}
+            <option value="{{ value }}"{% if filters.atrocity == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <select class="form-select" name="woreda" aria-label="Filter by woreda">
+          <option value="">All woredas</option>
+          {% for woreda in woreda_list %}
+            <option value="{{ woreda.woreda_name }}"{% if filters.woreda == woreda.woreda_name %} selected{% endif %}>{{ woreda.woreda_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <select class="form-select" name="gender" aria-label="Filter by gender">
+          <option value="">All genders</option>
+          {% for value, label in gender_choices %}
+            <option value="{{ value }}"{% if filters.gender == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-1 d-flex gap-1">
+        <button type="submit" class="btn btn-dark flex-grow-1" aria-label="Apply filters">Go</button>
+        <a class="btn btn-outline-dark" data-async-reset href="{% url 'civilian_victims_by_name' %}" aria-label="Reset filters">Reset</a>
+      </div>
+    </form>
+
+    <div id="victim-results" aria-live="polite">
+      {% include 'public_partials/civilian_victim_results.html' %}
+    </div>
+  </div>
+</main>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  (() => {
+    const form = document.getElementById('victim-filters');
+    const results = document.getElementById('victim-results');
+    if (!form || !results || !window.fetch || !window.history) return;
+
+    let activeRequest;
+    let nameTimer;
+
+    function formUrl() {
+      const url = new URL(form.action || window.location.pathname, window.location.origin);
+      const params = new URLSearchParams(new FormData(form));
+      for (const [key, value] of [...params.entries()]) {
+        if (!value.trim()) params.delete(key);
+      }
+      url.search = params.toString();
+      return url;
+    }
+
+    function syncForm(url) {
+      const params = new URL(url, window.location.origin).searchParams;
+      for (const element of form.elements) {
+        if (element.name) element.value = params.get(element.name) || '';
+      }
+    }
+
+    async function loadResults(url, { push = true, scroll = false } = {}) {
+      activeRequest?.abort();
+      const controller = new AbortController();
+      activeRequest = controller;
+      results.setAttribute('aria-busy', 'true');
+      results.style.opacity = '0.55';
+
+      try {
+        const response = await fetch(url, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
+        results.innerHTML = await response.text();
+        if (push) window.history.pushState({}, '', url);
+        if (scroll) results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        if (error.name !== 'AbortError') window.location.assign(url);
+      } finally {
+        if (activeRequest === controller) {
+          results.removeAttribute('aria-busy');
+          results.style.opacity = '';
+        }
+      }
+    }
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      loadResults(formUrl());
+    });
+
+    form.addEventListener('change', (event) => {
+      if (event.target.matches('select')) loadResults(formUrl());
+    });
+
+    form.querySelector('input[name="name"]')?.addEventListener('input', () => {
+      window.clearTimeout(nameTimer);
+      nameTimer = window.setTimeout(() => loadResults(formUrl()), 350);
+    });
+
+    form.querySelector('[data-async-reset]')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      form.reset();
+      loadResults(event.currentTarget.href);
+    });
+
+    results.addEventListener('click', (event) => {
+      const link = event.target.closest('a[data-async-page]');
+      if (!link) return;
+      event.preventDefault();
+      loadResults(link.href, { scroll: true });
+    });
+
+    window.addEventListener('popstate', () => {
+      syncForm(window.location.href);
+      loadResults(window.location.href, { push: false });
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% load humanize %}
+{% if page.object_list %}
+  <div class="row g-4 photo-archive-batch">
+    {% for item in page.object_list %}
+      {% include 'public_partials/photo_archive_card.html' with item=item only %}
+    {% endfor %}
+  </div>
+{% elif page.number == 1 %}
+  <div class="context-box">No photo archives matched this filter.</div>
+{% endif %}
+
+<div id="photo-archive-load-more" class="text-center mt-4" aria-live="polite">
+  {% if page.has_next %}
+    <a
+      class="btn btn-dark rounded-pill px-4 photo-archive-load-button"
+      href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}"
+      hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}"
+      hx-target="#photo-archive-load-more"
+      hx-swap="outerHTML"
+      hx-indicator="this"
+      hx-disabled-elt="this"
+    >
+      <span class="load-more-label">Load 6 more</span>
+      <span class="spinner-border spinner-border-sm htmx-indicator" aria-hidden="true"></span>
+      <span class="visually-hidden htmx-indicator">Loading photo archives...</span>
+    </a>
+    <div class="small-note mt-2">Showing {{ page.end_index|intcomma }} of {{ filtered_count|intcomma }} photo archives</div>
+  {% elif filtered_count %}
+    <div class="small-note">All {{ filtered_count|intcomma }} matching photo archives are displayed.</div>
+  {% endif %}
+</div>
