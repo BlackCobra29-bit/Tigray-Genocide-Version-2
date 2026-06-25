@@ -593,7 +593,13 @@
               aspect-ratio: 3 / 4;
               object-fit: cover;
               filter: grayscale(1) contrast(1.08);
+              transition: filter 0.35s ease, transform 0.35s ease;
               border: 1px solid rgba(255,255,255,.15);
+            }
+            .memorial-card:hover .memorial-photo,
+            .memorial-photo:hover {
+              filter: none;
+              transform: scale(1.02);
             }
             .memorial-name{
               font-weight: 800;
