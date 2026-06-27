@@ -22,24 +22,17 @@
         </div>
       </div>
     </div>
-    <div class="hero-bottom-strip" aria-label="Archive coverage">
-      <div class="container-xl hero-strip-grid">
-        <span><span class="mi">location_on</span>Western, Central, Eastern, Southern, North Western, Mekelle</span>
-        <span><span class="mi">shield</span>Documentation for research and accountability</span>
-        <span><span class="mi">photo_library</span>Photo, video, and memorial registry records</span>
-      </div>
-    </div>
   </div>
 </header>
 
 <section class="container-xl counter-cards" aria-label="Archive counters">
   <div class="counter-shell"><div class="counter-grid">
-    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_civilian|intcomma }}</p><span class="counter-icon mi">verified</span></div><p class="counter-label">Verified Civilian Victims</p><p class="counter-meta">Memorial registry</p></div></article>
-    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_unverified_civilian|intcomma }}</p><span class="counter-icon mi">person_search</span></div><p class="counter-label">Unidentified Civilian Victims</p><p class="counter-meta">Pending verification</p></div></article>
-    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_articles|intcomma }}</p><span class="counter-icon mi">article</span></div><p class="counter-label">Analysis Articles</p><p class="counter-meta">Editorial desk</p></div></article>
-    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_panel|intcomma }}</p><span class="counter-icon mi">forum</span></div><p class="counter-label">Webinar Discussions</p><p class="counter-meta">Panel records</p></div></article>
-    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_photo|intcomma }}</p><span class="counter-icon mi">photo_library</span></div><p class="counter-label">Photo Archives</p><p class="counter-meta">Evidence media</p></div></article>
-    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_video|intcomma }}</p><span class="counter-icon mi">smart_display</span></div><p class="counter-label">Video Archives</p><p class="counter-meta">Broadcast records</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_civilian|intcomma }}</p><span class="counter-icon mi">verified</span></div><p class="counter-label">Verified Civilian Victims</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_unverified_civilian|intcomma }}</p><span class="counter-icon mi">person_search</span></div><p class="counter-label">Unidentified Civilian Victims</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_articles|intcomma }}</p><span class="counter-icon mi">article</span></div><p class="counter-label">Analysis Articles</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_panel|intcomma }}</p><span class="counter-icon mi">forum</span></div><p class="counter-label">Webinar Discussions</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class="counter-head"><p class="counter-value">{{ count_photo|intcomma }}</p><span class="counter-icon mi">photo_library</span></div><p class="counter-label">Photo Archives</p></div></article>
+    <article class="counter-card"><div class="counter-card-inner"><div class=" counter-head"><p class=" counter-value">{{ count_video|intcomma }}</p><span class=" counter-icon mi">smart_display</span></div><p class=" counter-label">Video Archives</p></div></article>
   </div></div>
 </section>
 
@@ -112,25 +105,28 @@
   <section class="victim-section p-3 p-md-4 mt-4" id="victim-gallery">
     <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center justify-content-between mb-3">
       <div><h2 class="h4 section-title mb-1">Browse Victims</h2><div class="small-note" id="memorialResultsCount">Showing 0 victims</div></div>
-      <a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'civilian-victim-photo-page' %}">View full registry</a>
     </div>
     <div class="registry-toolbar mb-3"><div class="row g-2"><div class="col-12 col-lg-8"><input id="memorialSearch" class="form-control" type="search" placeholder="Search victim name, zone, woreda, or perpetrator" /></div><div class="col-12 col-lg-4"><select id="zoneFilter" class="form-select"><option value="">All zones</option><option value="central tigray">Central Tigray</option><option value="eastern tigray">Eastern Tigray</option><option value="mekelle special">Mekelle Special</option><option value="north western tigray">North Western Tigray</option><option value="other">Other</option><option value="south eastern tigray">South Eastern Tigray</option><option value="southern tigray">Southern Tigray</option><option value="western tigray">Western Tigray</option></select></div></div></div>
     <div class="row g-3" id="memorialGrid">{% for victim in civilian_victims %}{% include 'public_partials/victim_card.html' with victim=victim only %}{% empty %}<div class="col-12"><div class="context-box">No verified civilian victim records were found.</div></div>{% endfor %}</div>
+    {% if civilian_victims %}<div class="section-footer-action"><a class="btn btn-dark section-full-link rounded-pill px-4" href="{% url 'civilian-victim-photo-page' %}">View full registry <span class="mi" aria-hidden="true">arrow_forward</span></a></div>{% endif %}
   </section>
 
   <section class="mt-5" id="photo-gallery">
-    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Photo Archives</h2><div class="small-note">Recent evidence media</div></div><a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'archive-photo' %}">All photos</a></div>
+    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Photo Archives</h2><div class="small-note">Recent evidence media</div></div></div>
     <div class="row g-4">{% for item in photo_archives %}{% include 'public_partials/photo_archive_card.html' with item=item only %}{% empty %}<div class="col-12"><div class="context-box">No photo archives were found.</div></div>{% endfor %}</div>
+    {% if photo_archives %}<div class="section-footer-action"><a class="btn btn-dark section-full-link rounded-pill px-4" href="{% url 'archive-photo' %}">See full photo archive <span class="mi" aria-hidden="true">arrow_forward</span></a></div>{% endif %}
   </section>
 
   <section class="mt-5" id="analysis-articles">
-    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Analysis Articles</h2><div class="small-note">Recent commentary and documentation analysis</div></div><a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'app-articles-page' %}">All articles</a></div>
+    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Analysis Articles</h2><div class="small-note">Recent commentary and documentation analysis</div></div></div>
     <div class="row g-4">{% for article in analysis_articles %}{% include 'public_partials/article_card.html' with article=article only %}{% empty %}<div class="col-12"><div class="context-box">No analysis articles were found.</div></div>{% endfor %}</div>
+    {% if analysis_articles %}<div class="section-footer-action"><a class="btn btn-dark section-full-link rounded-pill px-4" href="{% url 'app-articles-page' %}">See full article archive <span class="mi" aria-hidden="true">arrow_forward</span></a></div>{% endif %}
   </section>
 
   <section class="mt-5 mb-5" id="video-archives">
-    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Video Archives</h2><div class="small-note">Recorded evidence and broadcast clips</div></div><a class="btn btn-outline-dark rounded-pill px-3" href="{% url 'archive-video' %}">All videos</a></div>
+    <div class="d-flex align-items-center justify-content-between mb-3"><div><h2 class="h4 section-title mb-1">Video Archives</h2><div class="small-note">Recorded evidence and broadcast clips</div></div></div>
     <div class="row g-4">{% for item in video_archives %}{% include 'public_partials/video_card.html' with item=item only %}{% empty %}<div class="col-12"><div class="context-box">No video archives were found.</div></div>{% endfor %}</div>
+    {% if video_archives %}<div class="section-footer-action"><a class="btn btn-dark section-full-link rounded-pill px-4" href="{% url 'archive-video' %}">See full video archive <span class="mi" aria-hidden="true">arrow_forward</span></a></div>{% endif %}
   </section>
 </main>
 {% endblock %}

@@ -667,12 +667,23 @@
               font-style: italic;
               font-family: "Times New Roman", Times, serif;
             }
-            .photo-copy{
-              margin: 0;
-              color: #606a75;
-              font-size: 1rem;
-              line-height: 1.45;
-            }
+.photo-copy{
+  margin: 0;
+  color: #606a75;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.section-footer-action{
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+.section-full-link{
+  align-items: center;
+  display: inline-flex;
+  gap: .35rem;
+  font-weight: 800;
+}
 
             .hr-soft{ border-top: 1px solid var(--stroke); opacity: 1; }
 
@@ -961,7 +972,7 @@
   vertical-align: top;
 }
 .text-link{
-  color: #9f101b;
+  color: #2764be;
   font-weight: 800;
   text-decoration: none;
 }
@@ -1128,6 +1139,13 @@
     padding: .85rem;
   }
   .detail-list{ grid-template-columns: 1fr; }
+  .section-footer-action{
+    justify-content: stretch;
+  }
+  .section-full-link{
+    justify-content: center;
+    width: 100%;
+  }
   .chart-panel{
     min-height: 0;
   }
