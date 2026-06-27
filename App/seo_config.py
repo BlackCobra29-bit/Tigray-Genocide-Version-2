@@ -10,8 +10,8 @@ SITE_DEFAULT_KEYWORDS = (
     'humanitarian crisis, genocide documentation'
 )
 
-SITE_LOGO_STATIC = 'new-template/asset/img/logo.png'
-SITE_OG_IMAGE_STATIC = 'new-template/asset/img/logo.png'
+SITE_LOGO_STATIC = 'new-template/asset/img/logo.webp'
+SITE_OG_IMAGE_STATIC = 'new-template/asset/img/logo.webp'
 
 ARTICLE_CATEGORY_SEO = {
     'general': {

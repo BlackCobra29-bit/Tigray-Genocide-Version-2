@@ -5,7 +5,7 @@
 {% block page-content %}
 <header class="w-100 px-0 hero-header">
   <div class="hero hero-centered px-0">
-    <img class="hero-bg" src="{% static 'new-template/asset/img/hero-image.png' %}" alt="Tigray genocide archive hero image" />
+    <img class="hero-bg" src="{% static 'new-template/asset/img/hero-image.webp' %}" alt="Tigray genocide archive hero image" />
     <div class="hero-shade" aria-hidden="true"></div>
     <div class="hero-gridlines" aria-hidden="true"></div>
     <div class="container-xl hero-stage">
@@ -49,8 +49,8 @@
     <div class="row g-4">
       <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Victims by Zone</h3><canvas id="zoneChart" data-values="{{ line_data_points|join:',' }}"></canvas></div></div>
       <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Age</h3><canvas id="ageChart" data-values="{{ bar_data_points|join:',' }}"></canvas></div></div>
-      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Atrocity Distribution</h3><canvas id="casualtyPieChart"></canvas></div></div>
-      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Gender</h3><canvas id="genderDonutChart"></canvas></div></div>
+      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Atrocity Distribution</h3><canvas id="casualtyPieChart" data-values="{{ pi_data_points|join:',' }}"></canvas></div></div>
+      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Gender</h3><canvas id="genderDonutChart" data-values="{{ doughnut_data_points|join:',' }}"></canvas></div></div>
     </div>
   </div>
 </section>

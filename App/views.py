@@ -1,6 +1,9 @@
 # import libraries to export SQL backup
 import subprocess
 import os
+import logging
+import tempfile
+import threading
 from django.conf import settings
 from django.http import Http404, HttpResponse
 from datetime import datetime
@@ -17,7 +20,6 @@ from .models import Photo_archive
 from .models import Video_archive
 from .models import Administrator
 from .models import Tigray_woreda
-from .models import Hero_images
 from .models import Webmail_password_manager
 from .models import Unverified_civilian
 from django.contrib import messages
@@ -54,10 +56,12 @@ import string
 import plotly.graph_objs as go
 from plotly.offline import plot
 import urllib.parse
-from django.utils.text import slugify
+from django.utils.text import get_valid_filename, slugify
 from django.utils.html import escape
 # to purse video url id
 from urllib.parse import urlparse, parse_qs
+
+logger = logging.getLogger(__name__)
 
 def custom_404_view(request, exception):
     
@@ -65,35 +69,53 @@ def custom_404_view(request, exception):
 
 @cache_page(300)  # Cache for 5 minutes (300 seconds)
 def index(request):
-
-    # select select hero image
-    random_hero_image = Hero_images.objects.filter().order_by('?')[:1].get()
-    
-    # counter data
-    
     count_civilian = Civilian_victims.objects.filter(approval=True).count()
     count_articles = Analysis_articles.objects.filter(approval=True, draft=False).count()
     count_panel = Webinar.objects.all().count()
     count_photo = Photo_archive.objects.all().count()
     count_video = Video_archive.objects.all().count()
 
-    # fetch models data
-    civilian_victims = Civilian_victims.objects.filter(approval=True).exclude(Q(picture='civilian_victims_pic/default.png') | Q(picture='civilian_victims_pic/default_female.jpg'))[:30]
-    analysis_articles = Analysis_articles.objects.filter(approval=True, draft=False)[:9]
-    photo_archives = Photo_archive.objects.all()[:12]
+    # Fetch public preview data with relations already loaded for templates.
+    civilian_victims = (
+        Civilian_victims.objects
+        .filter(approval=True)
+        .exclude(Q(picture='civilian_victims_pic/default.png') | Q(picture='civilian_victims_pic/default_female.jpg'))
+        .select_related('woreda')
+        .only(
+            'id', 'full_name', 'gender', 'picture', 'zone', 'woreda',
+            'perpetrator', 'place_of_killing', 'date_created',
+        )[:30]
+    )
+    analysis_articles = (
+        Analysis_articles.objects
+        .filter(approval=True, draft=False)
+        .select_related('author', 'author__administrator')
+        .only(
+            'id', 'title', 'thumbnail', 'date_created',
+            'author__first_name', 'author__last_name',
+            'author__administrator__admin_photo',
+        )[:9]
+    )
+    photo_archives = (
+        Photo_archive.objects
+        .select_related('woreda')
+        .only(
+            'id', 'location', 'woreda', 'date_of_event', 'description',
+            'photo', 'graphic', 'date_created',
+        )[:12]
+    )
     video_archives = Video_archive.objects.all()[:12]
 
-    # Get total unverified civilians ONCE (used in multiple places)
     total_unverified = Unverified_civilian.objects.aggregate(
         total=Sum('number_of_civilian', default=0)
     )['total'] or 0
     total_civilians_sum = count_civilian + total_unverified
 
-    # line chart - Get zone counts in batch instead of looping with individual queries
-    zone_list = ['Western Tigray', 'Eastern Tigray', 'Central Tigray', 'North Western Tigray',
-                 'Southern Tigray', 'South Eastern Tigray', 'Mekelle Special', 'Other']
-    
-    # Get all verified counts by zone in one query
+    zone_list = [
+        'Western Tigray', 'Eastern Tigray', 'Central Tigray',
+        'North Western Tigray', 'Southern Tigray', 'South Eastern Tigray',
+        'Mekelle Special', 'Other',
+    ]
     verified_by_zone = dict(
         Civilian_victims.objects
         .filter(approval=True)
@@ -101,213 +123,107 @@ def index(request):
         .annotate(cnt=Count('id'))
         .values_list('zone', 'cnt')
     )
-    
-    # Get all unverified counts by zone in one query
     unverified_by_zone = dict(
         Unverified_civilian.objects
         .values('zone')
         .annotate(total=Sum('number_of_civilian', default=0))
         .values_list('zone', 'total')
     )
-    
-    line_chart_data_points = []
-    for zone in zone_list:
-        verified = verified_by_zone.get(zone, 0)
-        unverified = unverified_by_zone.get(zone, 0) or 0
-        line_chart_data_points.append(verified + unverified)
-
-    # line chart percentages - use pre-calculated total instead of recalculating in loop
-    line_chart_items_percentage = []
-    for item in line_chart_data_points:
-        if total_civilians_sum != 0:
-            percentage = round((item * 100) / total_civilians_sum, 2)
-            line_chart_items_percentage.append(percentage)
-        else:
-            line_chart_items_percentage.append(0)
-
-
-    # bar chart
-    bar_chart_data_points = [
-        Civilian_victims.objects.filter(
-            approval=True, age__gt=int(0), age__lt=int(11)).count(),
-        Civilian_victims.objects.filter(
-            approval=True, age__gte=int(11), age__lt=int(18)).count(),
-        Civilian_victims.objects.filter(
-            approval=True, age__gte=int(18), age__lt=int(33)).count(),
-        Civilian_victims.objects.filter(
-            approval=True, age__gte=int(33), age__lt=int(49)).count(),
-        Civilian_victims.objects.filter(
-            approval=True, age__gte=int(49), age__lt=int(64)).count(),
-        Civilian_victims.objects.filter(
-            approval=True, age__gte=int(64), age__lt=int(80)).count(),
-        Civilian_victims.objects.filter(
-            approval=True, age__gte=int(80), age__lt=int(95)).count(),
-        Civilian_victims.objects.filter(approval=True, age = None).count()
+    line_chart_data_points = [
+        (verified_by_zone.get(zone, 0) or 0) + (unverified_by_zone.get(zone, 0) or 0)
+        for zone in zone_list
+    ]
+    line_chart_items_percentage = [
+        round((item * 100) / total_civilians_sum, 2) if total_civilians_sum else 0
+        for item in line_chart_data_points
     ]
 
-    # bar chart percentages - use pre-calculated count_civilian instead of recalculating in loop
-    bar_chart_items_percentage = []
-    for item in bar_chart_data_points:
-        if count_civilian != 0:
-            percentage = round((item * 100) / count_civilian, 2)
-            bar_chart_items_percentage.append(percentage)
-        else:
-            bar_chart_items_percentage.append(0)
+    age_buckets = Civilian_victims.objects.filter(approval=True).aggregate(
+        age_0_10=Count('id', filter=Q(age__gt=0, age__lt=11)),
+        age_11_17=Count('id', filter=Q(age__gte=11, age__lt=18)),
+        age_18_32=Count('id', filter=Q(age__gte=18, age__lt=33)),
+        age_33_48=Count('id', filter=Q(age__gte=33, age__lt=49)),
+        age_49_63=Count('id', filter=Q(age__gte=49, age__lt=64)),
+        age_64_79=Count('id', filter=Q(age__gte=64, age__lt=80)),
+        age_80_94=Count('id', filter=Q(age__gte=80, age__lt=95)),
+        age_unknown=Count('id', filter=Q(age=None)),
+    )
+    bar_chart_data_points = [
+        age_buckets['age_0_10'],
+        age_buckets['age_11_17'],
+        age_buckets['age_18_32'],
+        age_buckets['age_33_48'],
+        age_buckets['age_49_63'],
+        age_buckets['age_64_79'],
+        age_buckets['age_80_94'],
+        age_buckets['age_unknown'],
+    ]
+    bar_chart_items_percentage = [
+        round((item * 100) / count_civilian, 2) if count_civilian else 0
+        for item in bar_chart_data_points
+    ]
 
-
-    # Pie Chart
-    
-
-    verified_list = []
-
-    verified_list = []
-
-    verified_legend = []
-
-    pi_chart_data_points = []
-
-    perpetrator_list = ['Died from lack of food', 'Killed by Eritrean forces', 'Died from lack of medicine',
-
-                    'Killed by Ethiopian forces', 'Killed by Ethiopian and Eritrean forces', 'Killed by Amhara militia and Fano']
-
-    
-
-    total_count = Civilian_victims.objects.filter(approval=True).count()
-
-    for item in perpetrator_list:
-        
-        total_civilian_count = Unverified_civilian.objects.filter(perpetrator=item).aggregate(total_civilian_count=Sum('number_of_civilian'))['total_civilian_count']
-        
-        
-        if total_civilian_count is None:
-            total_civilian_count = 0
-        
-        count_items = (Civilian_victims.objects.filter(approval=True, perpetrator=item).count() + total_civilian_count)
-
-        if count_items > 0:
-
-            total_civilian_count = Unverified_civilian.objects.filter(perpetrator=item).aggregate(total_civilian_count=Sum('number_of_civilian'))['total_civilian_count']
-        
-        
-            if total_civilian_count is None:
-                total_civilian_count = 0
-
-            pi_chart_data_points.append(Civilian_victims.objects.filter(
-
-                approval=True, perpetrator=item).count() + total_civilian_count)
-
-
-
-            verified_list.append(item)
-
-            verified_legend.append(f"{item} ({round((count_items/total_count)*100, 1)}%)")
-
-    pie_chart = go.Figure(data=[go.Pie(labels=verified_legend, values=pi_chart_data_points,
-
-                hoverinfo='label+value', textinfo='value+percent', textposition='inside')])
-
-    # Update the layout to increase width and height
-    pie_chart.update_layout(
-    autosize=True,  # Enable autosizing to make the chart responsive
-    margin=dict(l=0, r=0, t=30, b=0),  # Adjust margin as needed
-    legend=dict(orientation="h", yanchor="top", y=1.5),  # Position legend at the top
-)
-
-    # end of to be updated
-
-    pie_chart.update_traces(marker=dict(colors=['rgb(13, 93, 149)', 'rgb(36, 102, 71)', '#2ca02c', '#d62728', 'rgb(126, 34, 189)', 'rgb(121, 53, 40)']),
-
-     textinfo='value+percent', textfont=dict(color='white', size=14))
-
-    # Doughnut Chart
-
-    verified_list = []
-
-    verified_legend = []
-
-    doughnut_chart_data_points = []
+    perpetrator_choices = Civilian_victims.Perpetrator_Choices
+    perpetrator_list = [
+        perpetrator_choices[0][0],
+        perpetrator_choices[3][0],
+        perpetrator_choices[1][0],
+        perpetrator_choices[2][0],
+        perpetrator_choices[4][0],
+        perpetrator_choices[5][0],
+    ]
+    verified_by_perpetrator = dict(
+        Civilian_victims.objects
+        .filter(approval=True)
+        .values('perpetrator')
+        .annotate(cnt=Count('id'))
+        .values_list('perpetrator', 'cnt')
+    )
+    unverified_by_perpetrator = dict(
+        Unverified_civilian.objects
+        .values('perpetrator')
+        .annotate(total=Sum('number_of_civilian', default=0))
+        .values_list('perpetrator', 'total')
+    )
+    pi_chart_data_points = [
+        (verified_by_perpetrator.get(item, 0) or 0)
+        + (unverified_by_perpetrator.get(item, 0) or 0)
+        for item in perpetrator_list
+    ]
 
     gender_list = ['Male', 'Female', 'Unknown']
+    verified_by_gender = dict(
+        Civilian_victims.objects
+        .filter(approval=True)
+        .values('gender')
+        .annotate(cnt=Count('id'))
+        .values_list('gender', 'cnt')
+    )
+    doughnut_chart_data_points = [
+        verified_by_gender.get(item, 0) or 0
+        for item in gender_list
+    ]
 
-
-
-    total_count = Civilian_victims.objects.filter(approval=True).count()
-
-    for item in gender_list:
-
-        count_items = Civilian_victims.objects.filter(approval=True, gender=item).count()
-
-        if count_items > 0:
-
-
-
-            doughnut_chart_data_points.append(count_items)
-
-
-
-            verified_list.append(item)
-
-            verified_legend.append(f"{item} ({round((count_items/total_count)*100, 1)}%)")
-
-
-
-    # Create the donut chart
-
-    donut_chart = go.Figure(data=[go.Pie(labels=verified_legend, values=doughnut_chart_data_points, hole=0.5, 
-
-            hoverinfo='label+value', textposition='inside', textinfo='value+percent')])
-
-    # Update the layout to increase width and height
-    donut_chart.update_layout(
-    autosize=True,  # Enable autosizing to make the chart responsive
-    margin=dict(l=0, r=0, t=30, b=0),  # Adjust margin as needed
-    legend=dict(orientation="h", yanchor="top", y=1.5),  # Position legend at the top
-)
-
-    donut_chart.update_traces(marker=dict(colors=['rgb(102, 73, 36)', 'rgb(214, 39, 40)', 'rgb(36, 102, 71)']),
-
-        textinfo='value+percent', textfont=dict(color='white', size=14))
-
-
-
-    # Convert the chart to HTML
-
-    doughnut_plot_div = plot(donut_chart, output_type='div')
-
-    # get sum of unverified ciivilians
-    if Unverified_civilian.objects.exists():
-        total_civilians = Unverified_civilian.objects.aggregate(total_civilians=Sum('number_of_civilian'))['total_civilians']
-    else:
-        total_civilians = 0
-    
     context = {
-        # counter data
         'count_civilian': count_civilian,
         'count_articles': count_articles,
         'count_panel': count_panel,
         'count_photo': count_photo,
         'count_video': count_video,
-        'count_unverified_civilian':total_civilians,
-        # hero image object
-        'hero_image': random_hero_image.hero_image.url,
-        # section data
+        'count_unverified_civilian': total_unverified,
         'civilian_victims': civilian_victims,
         'analysis_articles': analysis_articles,
-        # Chart data
         'line_data_points': line_chart_data_points,
         'bar_data_points': bar_chart_data_points,
         'bar_chart_items_percentage': bar_chart_items_percentage,
         'line_chart_items_percentage': line_chart_items_percentage,
         'photo_archives': photo_archives,
         'video_archives': video_archives,
-        'pi_data_points': pie_chart.to_html(full_html=False),
-        'doughnut_data_points': doughnut_plot_div
+        'pi_data_points': pi_chart_data_points,
+        'doughnut_data_points': doughnut_chart_data_points,
     }
 
-    print(f'bar_chart_items_percentage {bar_chart_items_percentage}')
-
     return render(request, 'index.html', context)
-
 
 def civilian_victims_by_name(request):
     filters = {
@@ -665,7 +581,11 @@ def View_article(request, id):
     personal_acc = Analysis_articles.objects.filter(Q(approval = True)
      & Q(personal_account = True) & Q(draft = False)).count()
 
-    analysis_article_item = Analysis_articles.objects.get(id=id, approval=True, draft=False)
+    analysis_article_item = (
+        Analysis_articles.objects
+        .select_related('author')
+        .get(id=id, approval=True, draft=False)
+    )
 
     analysis_article_comments = Article_comments.objects.filter(
         article=analysis_article_item)
@@ -700,7 +620,11 @@ def Article_comment(request, article_id):
 
 def Articles_page(request):
 
-    total_articles = Analysis_articles.objects.filter(approval=True, draft=False)
+    total_articles = (
+        Analysis_articles.objects
+        .filter(approval=True, draft=False)
+        .select_related('author', 'author__administrator')
+    )
 
     paginator = Paginator(total_articles, 12)
 
@@ -723,22 +647,34 @@ def General_category_articles(request, category):
 
     # if the selected category is "General"
     if category == 'general':
-        general_articles = Analysis_articles.objects.filter(Q(approval = True)
-                        & Q(endf_related = False) & Q(personal_account = False) & Q(draft = False))
+        general_articles = (
+            Analysis_articles.objects
+            .filter(Q(approval = True)
+                    & Q(endf_related = False) & Q(personal_account = False) & Q(draft = False))
+            .select_related('author', 'author__administrator')
+        )
 
         paginator = Paginator(general_articles, 12)
 
     # if the selected category is "Personal accounts"
     if category == 'personal':
-        personal_articles =  Analysis_articles.objects.filter(Q(approval = True) 
-                        & Q(personal_account = True) & Q(draft = False))
+        personal_articles = (
+            Analysis_articles.objects
+            .filter(Q(approval = True)
+                    & Q(personal_account = True) & Q(draft = False))
+            .select_related('author', 'author__administrator')
+        )
 
         paginator = Paginator(personal_articles, 12)
         
     # if the selected category is "ENDF related"
     if category == 'endf':
-        endf_articles = Analysis_articles.objects.filter(Q(approval = True)
-                        & Q(endf_related = True) & Q(draft = False))
+        endf_articles = (
+            Analysis_articles.objects
+            .filter(Q(approval = True)
+                    & Q(endf_related = True) & Q(draft = False))
+            .select_related('author', 'author__administrator')
+        )
 
         paginator = Paginator(endf_articles, 12)
 
@@ -760,8 +696,12 @@ def Search_article(request):
     context = {}
 
     if request.method == 'POST':
-        searched_articles = Analysis_articles.objects.filter(Q(title__icontains = request.POST.get('search_query'))
-                            & (Q(draft = False)))
+        searched_articles = (
+            Analysis_articles.objects
+            .filter(Q(title__icontains = request.POST.get('search_query'))
+                    & (Q(draft = False)))
+            .select_related('author', 'author__administrator')
+        )
         
         context = {
             'search_result': searched_articles,
@@ -940,7 +880,36 @@ def Send_us_information(request):
     }
 
     return render(request, 'send_us_information.html', context)
-    
+
+
+def _send_archive_email_in_background(email_subject, email_body, email_from, email_to, uploaded_file):
+    original_name = get_valid_filename(uploaded_file.name or 'archive-upload')
+    content_type = uploaded_file.content_type
+    suffix = f'-{original_name}' if original_name else ''
+    fd, temp_path = tempfile.mkstemp(prefix='archive-upload-', suffix=suffix)
+
+    with os.fdopen(fd, 'wb') as temp_file:
+        for chunk in uploaded_file.chunks():
+            temp_file.write(chunk)
+
+    def send_email():
+        try:
+            msg = EmailMessage(email_subject, email_body, email_from, email_to)
+            with open(temp_path, 'rb') as attachment:
+                msg.attach(original_name, attachment.read(), content_type)
+            msg.content_subtype = "html"
+            msg.send()
+        except Exception:
+            logger.exception('Archive submission email failed.')
+        finally:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                logger.exception('Could not remove temporary archive upload: %s', temp_path)
+
+    threading.Thread(target=send_email, daemon=True).start()
+
+
 def Send_archive(request):
     
     context = {
@@ -950,6 +919,10 @@ def Send_archive(request):
     if request.method == 'POST':
         # email message setting
         archive_file = request.FILES['photo']
+        max_upload_size = getattr(settings, 'PUBLIC_ARCHIVE_MAX_UPLOAD_BYTES', 25 * 1024 * 1024)
+        if archive_file.size > max_upload_size:
+            return JsonResponse({'success': False}, status=413)
+
         email_subject = request.POST['sender_email']
         email_body = '''
                 <!DOCTYPE html
@@ -1062,11 +1035,13 @@ def Send_archive(request):
         email_from = request.POST['sender_email']
         email_to = [settings.EMAIL_HOST_USER]
 
-        msg = EmailMessage(email_subject, email_body, email_from, email_to)
-        msg.attach(archive_file.name, archive_file.read(), archive_file.content_type)
-        msg.content_subtype = "html"  # Set the content type to HTML
-        # Send the email
-        msg.send()
+        _send_archive_email_in_background(
+            email_subject,
+            email_body,
+            email_from,
+            email_to,
+            archive_file,
+        )
         
         return JsonResponse({'success': True})
     
@@ -1107,7 +1082,7 @@ def Admin_login(request):
 
     if request.user.is_authenticated:
 
-        return redirect('/Admin-dashboard')
+        return redirect('admin-dashboard')
 
     else:
 
@@ -1122,10 +1097,10 @@ def Admin_login(request):
                 if form.is_valid():
                     human = True
                     login(request, user_auth)
-                    return redirect('/Admin-dashboard')
+                    return redirect('admin-dashboard')
             else:
                 messages.error(request, 'Incorrect login credenials')
-                return redirect('/Adminstrator-login-page')
+                return redirect('admin-login')
 
     return render(request, 'admin_templates/account_templates/login.html', {'captcha_form': form})
 
@@ -1133,10 +1108,10 @@ def Admin_logout(request):
 
     logout(request)
 
-    return redirect('/Adminstrator-login-page')
+    return redirect('admin-login')
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def admin_dashboard(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1230,7 +1205,7 @@ def admin_dashboard(request):
 
     perpetrator_list = ['Died from lack of food', 'Killed by Eritrean forces', 'Died from lack of medicine',
 
-                    'Killed by Ethiopian forces', 'Killed by Ethiopian and Eritrean forces', 'Killed by Amhara militia and Fano']
+                    'Killed by Ethiopian forces', 'Killed by Ethiopian and Eritrean forces', 'Killed by Amhara militiaÂ andÂ Fano']
 
     
 
@@ -1355,7 +1330,7 @@ def admin_dashboard(request):
     return render(request, 'admin_templates/index.html', context)
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def admin_civilian_victims_page(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1375,7 +1350,7 @@ def admin_civilian_victims_page(request):
 
     return render(request, 'admin_templates/civilian_victim/civilian_victims.html', context)
 
-@login_required(login_url='/Administrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def add_civilian_victim(request):
     pending_count = Civilian_victims.objects.filter(approval=False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
 
@@ -1447,7 +1422,7 @@ def add_civilian_victim(request):
     # Return the same context if not AJAX request
     return render(request, 'admin_templates/civilian_victim/add_civilian_victim.html', context)
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def civilian_data_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1517,7 +1492,7 @@ class delete_civilian_victim_item(LoginRequiredMixin, SuccessMessageMixin, Delet
 
         return reverse('civilian-data-management')
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Add_unverified_civilian(request):
     pending_count = Civilian_victims.objects.filter(approval=False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
 
@@ -1550,7 +1525,7 @@ def Add_unverified_civilian(request):
 
     return render(request, 'admin_templates/civilian_victim/unverified_add_data.html', context)
     
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Unverified_civilian_data_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1599,7 +1574,7 @@ def delete_unverified_civilian_victim(request, pk):
     return redirect('unverified-civilian-data-management')
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def export_unverified_data(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1623,7 +1598,7 @@ def export_unverified_data(request):
 
     return render(request, 'admin_templates/civilian_victim/unverified_export_data.html', context)
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Write_article(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1673,7 +1648,7 @@ def Write_article(request):
 
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Draft_article(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1717,7 +1692,7 @@ def Draft_article(request):
         return render(request, 'admin_templates/analysis_article/write_article.html', context)
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Analysis_articles_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1737,7 +1712,7 @@ def Analysis_articles_management(request):
 
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Draft_articles_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1828,7 +1803,7 @@ class Delete_Article_Analysis(LoginRequiredMixin, SuccessMessageMixin, DeleteVie
 
         return reverse('analysis-article-management')
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Add_webinar_discussion(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1856,7 +1831,7 @@ def Add_webinar_discussion(request):
     else:
         return render(request, 'admin_templates/analysis_article/add_webinar_discussion.html', context)
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Webinar_discussion_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1915,7 +1890,7 @@ class Delete_Webinar_discussion(LoginRequiredMixin, SuccessMessageMixin, DeleteV
 
         return reverse('webinar-discussion-management')
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Archive_create_photo(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1949,7 +1924,7 @@ def Archive_create_photo(request):
     else:
         return render(request, 'admin_templates/archive_templates/add_photo_archive.html', context)
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Archive_manage_photo(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2009,7 +1984,7 @@ class Delete_photo_archive(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
 
         return reverse('manage-photo-archive')
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Archive_create_video(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2042,7 +2017,7 @@ def Archive_create_video(request):
         return render(request, 'admin_templates/archive_templates/add_video_archive.html', context)
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Archive_manage_video(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2102,7 +2077,7 @@ class Delete_video_archive(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
 
         return reverse('manage-video-archive')
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Create_admin_account(request):
 
     # get available pending posts
@@ -2211,19 +2186,19 @@ def Create_admin_account(request):
                                 </p>
                                 <ul>
                                     <li>
-                                        <p style="text-weight: normal; font-weight: 100;">🔐 Username: <b
+                                        <p style="text-weight: normal; font-weight: 100;">ðŸ” Username: <b
                                                 style="color: blue">{}</b></p>
                                     </li>
                                     <li>
-                                        <p style="text-weight: normal; font-weight: 100;">🔐 Password: <b
+                                        <p style="text-weight: normal; font-weight: 100;">ðŸ” Password: <b
                                                 style="color: blue">{}</b></p>
                                     </li>
 
                                 </ul>
-                                <p>👉 You can change your username and password once you log in with this one.</p>
+                                <p>ðŸ‘‰ You can change your username and password once you log in with this one.</p>
                                 <br>
                                 <div style="text-align: center">
-                                    <a href="www.tigraygenocide.com/Adminstrator-login-page/">
+                                    <a href="www.tigraygenocide.com/administrator-login-page/">
                                         <button style="font: inherit;
         background-color: #FF7A59;
         border: none;
@@ -2312,7 +2287,7 @@ def Create_admin_account(request):
         return render(request, 'admin_templates/account_templates/create_account.html', context)
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Manage_admin_account(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2346,7 +2321,7 @@ class Update_admin_permissions(LoginRequiredMixin, SuccessMessageMixin, UpdateVi
 
         return reverse('manage-admin-account')
         
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Deactivate_admin_account(request, admin_id):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2368,7 +2343,7 @@ def Deactivate_admin_account(request, admin_id):
     return render(request, 'admin_templates/account_templates/deactivate_admin_account.html', context)
 
         
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Pending_posts_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2432,7 +2407,7 @@ class Approve_Article_Analysis(LoginRequiredMixin, SuccessMessageMixin, UpdateVi
         return reverse('pending-posts-management')
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Account_settings(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2457,7 +2432,7 @@ def Account_settings(request):
     return render(request, 'admin_templates/admin_settings/settings.html', context)
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Password_settings(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2488,7 +2463,7 @@ def Password_settings(request):
 
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Profile_picture_settings(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2513,7 +2488,7 @@ def Profile_picture_settings(request):
 
 
 
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def Webmail_password_setting(request):
 
     if request.method == 'POST':
@@ -2546,7 +2521,7 @@ def Webmail_password_setting(request):
     return render(request, 'admin_templates/admin_settings/settings.html', context)
     
 # export database SQL backup
-@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
+@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
 def export_database(request):
     # Database credentials
     db_name = settings.DATABASES['default']['NAME']

@@ -296,6 +296,10 @@ urlpatterns = [
 
     path('admin-dashboard/', admin_dashboard, name = 'admin-dashboard'),
 
+    path('Admin-dashboard/', admin_dashboard),
+
+    path('Admin-dashboard', admin_dashboard),
+
     # admin civilian victims url-pattern
 
     path('civilian-victims/', admin_civilian_victims_page, name = 'admin-civilian-victims'),

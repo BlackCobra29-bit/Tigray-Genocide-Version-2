@@ -130,8 +130,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # settings.py
 
-LOGIN_URL = '/Adminstrator-login-page/'
-LOGIN_REDIRECT_URL = '/Admin-dashboard/'
+LOGIN_URL = '/administrator-login-page/'
+LOGIN_REDIRECT_URL = '/admin-dashboard/'
 
 try:
     first_object = Webmail_password_manager.objects.first()
@@ -165,6 +165,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+PUBLIC_ARCHIVE_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 LANGUAGE_CODE = 'en-us'
 

@@ -94,9 +94,17 @@
             }
             .nav-chip{
               padding: .46rem .35rem;
-              color: #fff;
+              color: #fff !important;
               font-weight: 700;
               transition: color .2s ease;
+            }
+            .nav-chip:hover,
+            .nav-chip:focus,
+            .nav-chip:active,
+            .nav-chip:visited,
+            .nav-chip:focus-visible,
+            .nav-chip * {
+              color: #fff !important;
             }
             .nav-mi{
               font-family: "Material Symbols Outlined";
