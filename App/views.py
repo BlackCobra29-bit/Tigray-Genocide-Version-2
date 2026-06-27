@@ -236,11 +236,13 @@ def civilian_victims_by_name(request):
     # Generate cache key based on filters and pagination
     cache_key = f'victims_by_name:{":".join(filters.values())}:page:{request.GET.get("page", 1)}'
     
-    # Check if it's an HTMX partial request
-    is_htmx_request = request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Boosted') != 'true'
+    is_partial = request.headers.get('HX-Boosted') != 'true' and (
+        request.headers.get('HX-Request') == 'true'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
     
-    # Try to get from cache for HTMX requests
-    if is_htmx_request:
+    # Try to get from cache for partial requests
+    if is_partial:
         cached_response = cache.get(cache_key)
         if cached_response:
             return render(request, 'public_partials/civilian_victim_results.html', cached_response)
@@ -288,8 +290,8 @@ def civilian_victims_by_name(request):
         'woreda_list': Tigray_woreda.objects.only('woreda_name'),
     }
 
-    # Cache HTMX partial responses for 30 minutes
-    if is_htmx_request:
+    # Cache partial responses for 30 minutes
+    if is_partial:
         cache.set(cache_key, context, 1800)
         return render(request, 'public_partials/civilian_victim_results.html', context)
     

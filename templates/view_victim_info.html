@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load custom %}
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title=item.full_name subtitle='Verified civilian victim record.' eyebrow='Victim profile' %}
+{% include 'public_partials/page_header.html' with title=item.full_name subtitle='Verified civilian victim record.' eyebrow='Victim profile' parent_label='Civilian Victims' parent_url='civilian_victims_by_name' %}
 <main class="container-xl page-section">
   <div class="row g-4 align-items-start">
     <div class="col-12 col-lg-4"><article class="profile-card glass p-3"><img class="profile-photo" src="{{ item.picture.url }}" alt="{{ item.full_name }}" /><a class="btn btn-outline-dark rounded-pill mt-3 w-100" href="{% url 'civilian-victim-photo-page' %}">Back to gallery</a></article></div>

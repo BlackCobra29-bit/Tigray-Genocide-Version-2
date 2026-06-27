@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Panel Discussions' subtitle='Recorded panel discussions and webinar records.' eyebrow='Analysis' %}
+{% include 'public_partials/page_header.html' with title='Panel Discussions' subtitle='Recorded panel discussions and webinar records.' eyebrow='Analysis' parent_label='Analysis' parent_url='app-articles-page' %}
 <main class="container-xl page-section"><div class="row g-4">{% for item in page %}<div class="col-12 col-md-6 col-xl-4"><article class="content-card h-100 p-4"><div class="small-note mb-2"><span class="mi">calendar_today</span>{{ item.date_created|date:"d-M-Y" }}</div><h2 class="content-card-title"><a href="{% url 'view-webinar-discussion' item.id %}">{{ item.webinar_title }}</a></h2><a class="readmore-link" href="{% url 'view-webinar-discussion' item.id %}">Read more <span class="mi">arrow_forward</span></a></article></div>{% empty %}<div class="col-12"><div class="context-box">No panel discussions were found.</div></div>{% endfor %}</div>{% include 'public_partials/pagination.html' with page=page only %}</main>
 {% endblock %}

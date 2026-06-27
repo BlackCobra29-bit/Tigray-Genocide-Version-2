@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block meta-title %}<meta name="og:title" content="Verified Civilian Victims by Location" />{% endblock %}
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Verified Civilian Victims by Location' subtitle='Explore verified records by woreda.' eyebrow='Location map' %}
+{% include 'public_partials/page_header.html' with title='Verified Civilian Victims by Location' subtitle='Explore verified records by woreda.' eyebrow='Location map' parent_label='Civilian Victims' parent_url='civilian_victims_by_name' %}
 <main class="container-xl page-section">
   <div class="glass p-4">
     <div class="row g-3 align-items-end mb-4"><div class="col-12 col-lg-5"><label class="form-label">Select Woreda</label><select class="form-select" id="selectWoreda"><option value="">Select Woreda</option>{% for woreda in woreda_list %}<option>{{ woreda.woreda_name }}</option>{% endfor %}</select></div></div>

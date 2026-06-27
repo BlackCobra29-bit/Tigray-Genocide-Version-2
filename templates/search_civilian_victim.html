@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Civilian Victim Search Results' subtitle='Filtered verified civilian victim records.' eyebrow='Search results' %}
+{% include 'public_partials/page_header.html' with title='Civilian Victim Search Results' subtitle='Filtered verified civilian victim records.' eyebrow='Search results' parent_label='Civilian Victims' parent_url='civilian_victims_by_name' %}
 <main class="container-xl page-section">
   <section class="victim-section p-3 p-md-4">
     <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="section-title h4 mb-0">Results</h2><a class="btn btn-outline-dark rounded-pill" href="{% url 'civilian-victim-photo-page' %}">Back to gallery</a></div>

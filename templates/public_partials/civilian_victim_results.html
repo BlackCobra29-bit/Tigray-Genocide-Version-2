@@ -12,13 +12,13 @@
   <nav class="pagination-wrap mt-3" aria-label="Civilian victim pages">
     <div class="btn-group flex-wrap" role="group">
       {% if page.has_previous %}
-        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page=1">First</a>
-        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>
+        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page=1" hx-target="#victim-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page=1">First</a>
+        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.previous_page_number }}" hx-target="#victim-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>
       {% endif %}
       <span class="btn btn-outline-dark btn-sm disabled" aria-current="page">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}
-        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>
-        <a class="btn btn-outline-dark btn-sm" data-async-page href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.paginator.num_pages }}">Last</a>
+        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}" hx-target="#victim-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>
+        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.paginator.num_pages }}" hx-target="#victim-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.paginator.num_pages }}">Last</a>
       {% endif %}
     </div>
   </nav>

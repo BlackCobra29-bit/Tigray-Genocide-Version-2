@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Unidentified Civilian Victims' subtitle='Unidentified civilian victim records pending verification.' eyebrow='Pending verification' %}
+{% include 'public_partials/page_header.html' with title='Unidentified Civilian Victims' subtitle='Unidentified civilian victim records pending verification.' eyebrow='Pending verification' parent_label='Civilian Victims' parent_url='civilian_victims_by_name' %}
 <main class="container-xl page-section">
   <div class="glass p-4">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
@@ -39,8 +39,7 @@
         </select>
       </div>
       <div class="col-12 col-md-2 d-flex gap-2">
-        <button type="submit" class="btn btn-dark flex-grow-1">Apply</button>
-        <a class="btn btn-outline-dark" href="{% url 'unverified-civilian-victim' %}">Reset</a>
+        <a class="btn btn-outline-dark flex-grow-1" href="{% url 'unverified-civilian-victim' %}">Reset</a>
         <span id="unverified-filter-spinner" class="spinner-border spinner-border-sm align-self-center" aria-hidden="true"></span>
       </div>
     </form>

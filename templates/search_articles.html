@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Article Search Results' subtitle='Search results for analysis articles.' eyebrow='Search results' %}
+{% include 'public_partials/page_header.html' with title='Article Search Results' subtitle='Search results for analysis articles.' eyebrow='Search results' parent_label='Analysis Articles' parent_url='app-articles-page' %}
 <main class="container-xl page-section"><div class="d-flex justify-content-between align-items-center mb-4"><div class="small-note">Search query: {{ search_query|default:'None' }}</div><button class="btn btn-outline-dark rounded-pill" onclick="window.history.back()">Back</button></div><div class="row g-4">{% for article in search_result %}{% include 'public_partials/article_card.html' with article=article only %}{% empty %}<div class="col-12"><div class="context-box">Your search "{{ search_query }}" did not match any documents.</div></div>{% endfor %}</div></main>
 {% endblock %}
