@@ -71,10 +71,14 @@
               left: 0;
               right: 0;
               z-index: 20;
-              border-bottom: 0;
-              background: linear-gradient(180deg, rgba(5, 4, 4, .72) 0%, rgba(5, 4, 4, .34) 58%, transparent 100%);
+              border-bottom: 1px solid rgba(255,255,255,.08);
+              background: #081015;
               box-shadow: none;
               backdrop-filter: none;
+            }
+            body.home-page .nav-blur {
+              border-bottom: 0;
+              background: linear-gradient(180deg, rgba(5, 4, 4, .72) 0%, rgba(5, 4, 4, .34) 58%, transparent 100%);
             }
             .brand-orb{
               width:38px;
@@ -90,7 +94,7 @@
             }
             .nav-chip{
               padding: .46rem .35rem;
-              color: rgba(255,255,255,.88);
+              color: #fff;
               font-weight: 700;
               transition: color .2s ease;
             }

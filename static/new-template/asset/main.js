@@ -510,15 +510,24 @@ document.querySelectorAll(".filter-controls").forEach((controls) => {
     window.setTimeout(() => link.remove(), 0);
   };
 
+  function updateBodyClassForNavigation() {
+    const homePaths = ["/", "/index.html"];
+    const path = window.location.pathname.replace(/\/+$|^\//g, "").toLowerCase();
+    const normalized = path ? `/${path}` : "/";
+    document.body.classList.toggle("home-page", homePaths.includes(normalized));
+  }
+
   initializePublicPage();
 
   function initializeHtmxNavigation() {
     if (!window.htmx) return;
     enhancePublicNavigation(document);
+    updateBodyClassForNavigation();
 
     document.body.addEventListener("htmx:load", (event) => {
       initializePublicPage();
       enhancePublicNavigation(event.detail?.elt || document);
+      updateBodyClassForNavigation();
 
       const navigation = document.getElementById("navMain");
       if (navigation?.classList.contains("show") && window.bootstrap) {
