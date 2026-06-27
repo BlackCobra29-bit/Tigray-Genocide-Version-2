@@ -25,6 +25,25 @@
         return values.length ? values : fallbackValues;
       }
 
+      function formatChartPercent(value, total) {
+        if (!total) return "0%";
+        return `${((value * 100) / total).toFixed(2).replace(/\.?0+$/, "")}%`;
+      }
+
+      function hydrateChartLegends() {
+        document.querySelectorAll("[data-chart-legend-for]").forEach((legend) => {
+          const canvas = document.getElementById(legend.dataset.chartLegendFor);
+          if (!canvas) return;
+
+          const values = parseChartValues(canvas.dataset.values, []);
+          const total = values.reduce((sum, value) => sum + value, 0);
+          legend.querySelectorAll("[data-chart-stat]").forEach((stat, index) => {
+            const value = values[index] || 0;
+            stat.textContent = `(${value.toLocaleString()} / ${formatChartPercent(value, total)})`;
+          });
+        });
+      }
+
       // --- Canvas analytics charts ---
       function fitCanvasDpr(canvas) {
         if (!canvas) return null;
@@ -338,6 +357,7 @@
         drawAgeChart();
         drawCasualtyPieChart();
         drawGenderDonutChart();
+        hydrateChartLegends();
       }
 
       // --- Init ---

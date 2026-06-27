@@ -47,10 +47,63 @@
   <div class="glass p-4" data-aos="fade-up">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3"><div><h2 class="h4 section-title mb-1">Dynamic Live Report</h2><div class="small-note">Charts draw from the current database where available.</div></div></div>
     <div class="row g-4">
-      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Victims by Zone</h3><canvas id="zoneChart" data-values="{{ line_data_points|join:',' }}"></canvas></div></div>
-      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Age</h3><canvas id="ageChart" data-values="{{ bar_data_points|join:',' }}"></canvas></div></div>
-      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Atrocity Distribution</h3><canvas id="casualtyPieChart" data-values="{{ pi_data_points|join:',' }}"></canvas></div></div>
-      <div class="col-12 col-lg-6"><div class="chart-panel"><h3>Verified Victims by Gender</h3><canvas id="genderDonutChart" data-values="{{ doughnut_data_points|join:',' }}"></canvas></div></div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-panel">
+          <h3>Victims by Zone</h3>
+          <ul class="chart-note chart-legend chart-legend-two-col" aria-label="Victims by zone legend">
+            <li><span class="mi chart-legend-icon">location_on</span>West <span>({{ line_chart_items_percentage.0|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>East <span>({{ line_chart_items_percentage.1|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>Central <span>({{ line_chart_items_percentage.2|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>North West <span>({{ line_chart_items_percentage.3|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>South <span>({{ line_chart_items_percentage.4|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>South East <span>({{ line_chart_items_percentage.5|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>Mekelle <span>({{ line_chart_items_percentage.6|safe }}%)</span></li>
+            <li><span class="mi chart-legend-icon">location_on</span>Other <span>({{ line_chart_items_percentage.7|safe }}%)</span></li>
+          </ul>
+          <canvas id="zoneChart" data-values="{{ line_data_points|join:',' }}"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-panel">
+          <h3>Verified Victims by Age</h3>
+          <ul class="chart-note chart-legend chart-legend-two-col" aria-label="Verified victims by age legend">
+            <li><span class="legend-swatch" style="background-color: #6d79b5;"></span>&lt; 10 <span>({{ bar_chart_items_percentage.0|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #4fc19a;"></span>10-18 <span>({{ bar_chart_items_percentage.1|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #d8746a;"></span>18-33 <span>({{ bar_chart_items_percentage.2|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #539ba0;"></span>33-49 <span>({{ bar_chart_items_percentage.3|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #a57896;"></span>49-64 <span>({{ bar_chart_items_percentage.4|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #baca56;"></span>64-80 <span>({{ bar_chart_items_percentage.5|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #5b8ea7;"></span>80-95 <span>({{ bar_chart_items_percentage.6|safe }}%)</span></li>
+            <li><span class="legend-swatch" style="background-color: #d68549;"></span>Unknown <span>({{ bar_chart_items_percentage.7|safe }}%)</span></li>
+          </ul>
+          <canvas id="ageChart" data-values="{{ bar_data_points|join:',' }}"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-panel">
+          <h3>Atrocity Distribution</h3>
+          <ul class="chart-note chart-legend chart-legend-stack" data-chart-legend-for="casualtyPieChart" aria-label="Atrocity distribution legend">
+            <li><span class="legend-swatch" style="background-color: #1f6da3;"></span>Died from lack of food <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #28734c;"></span>Killed by Eritrean forces <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #2f9c34;"></span>Died from lack of medicine <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #e02429;"></span>Killed by Ethiopian forces <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #7f2bbf;"></span>Killed by Ethiopian and Eritrean forces <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #7d3326;"></span>Killed by Amhara militia and Fano <span data-chart-stat></span></li>
+          </ul>
+          <canvas id="casualtyPieChart" data-values="{{ pi_data_points|join:',' }}"></canvas>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="chart-panel">
+          <h3>Verified Victims by Gender</h3>
+          <ul class="chart-note chart-legend chart-legend-stack" data-chart-legend-for="genderDonutChart" aria-label="Verified victims by gender legend">
+            <li><span class="legend-swatch" style="background-color: #7b5828;"></span>Male <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #de262a;"></span>Female <span data-chart-stat></span></li>
+            <li><span class="legend-swatch" style="background-color: #2f9c34;"></span>Unknown <span data-chart-stat></span></li>
+          </ul>
+          <canvas id="genderDonutChart" data-values="{{ doughnut_data_points|join:',' }}"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 </section>
