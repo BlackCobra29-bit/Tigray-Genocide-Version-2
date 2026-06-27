@@ -14,7 +14,12 @@
               --radius: 18px;
             }
 
-            html, body { height: 100%; }
+            html, body {
+              height: 100%;
+              max-width: 100%;
+              overflow-x: hidden;
+              overflow-x: clip;
+            }
 
             .page-assets { display: contents; }
 
@@ -50,6 +55,12 @@
 
             #page-content { transition: opacity .16s ease, transform .16s ease; }
             #page-content.htmx-swapping { opacity: 0; transform: translateY(3px); }
+            #page-content,
+            .site-footer {
+              max-width: 100%;
+              overflow-x: hidden;
+              overflow-x: clip;
+            }
 
             @media (prefers-reduced-motion: reduce) {
               #page-content { transition: none; }
@@ -209,6 +220,7 @@
             }
             .hero-content{
               max-width: 980px;
+              min-width: 0;
               position: relative;
               z-index: 4;
               text-align: center;
@@ -803,6 +815,12 @@
               .hero-header{
                 min-height: 100svh;
               }
+              .hero,
+              .hero-header{
+                max-width: 100%;
+                overflow-x: hidden;
+                overflow-x: clip;
+              }
               .hero-bg{
                 object-position: left center;
                 filter: grayscale(.18) contrast(1.08) saturate(.96);
@@ -818,8 +836,19 @@
                 padding-top: 7rem;
                 padding-bottom: 2.5rem;
               }
+              .hero-content::before{
+                inset: -2rem 0;
+              }
+              .hero-eyebrow{
+                max-width: 100%;
+                white-space: normal;
+                justify-content: center;
+              }
               .hero-title{
                 font-size: min(4.1rem, 9.2vw);
+              }
+              .hero-title-line{
+                white-space: normal;
               }
               .hero-sub{
                 font-size: 1rem;
@@ -846,6 +875,19 @@
               }
               .counter-shell{
                 padding-bottom: .85rem;
+                overflow: visible;
+              }
+              .counter-grid{
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+              }
+              .counter-card{
+                min-width: 0;
+                border-right: 0;
+                border-bottom: 1px solid rgba(24,24,24,.1);
+              }
+              .counter-card:nth-last-child(-n+2){
+                border-bottom: 0;
               }
               .counter-label{
                 font-size: .98rem;
