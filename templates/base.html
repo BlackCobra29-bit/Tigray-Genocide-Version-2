@@ -39,7 +39,7 @@
     <link rel="stylesheet" href="{% static 'admlte/datatable/css/responsive.bootstrap4.min.css' %}">
   <!-- Include SweetAlert library -->
   <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   
   <!-- share this script --> 
   <script type="text/javascript" src="https://platform-api.sharethis.com/js/sharethis.js#property=65adf601047cc8001954d45b&product=sticky-share-buttons&source=platform" async="async"></script>
@@ -187,15 +187,33 @@
             if (window.jQuery && $.fn.DataTable) {
                 $(root).find('table.js-server-datatable').each(function () {
                     if (!$.fn.DataTable.isDataTable(this)) {
-                        $(this).DataTable({
+                        var dataTable = $(this).DataTable({
                             paging: false,
                             searching: false,
                             ordering: false,
                             info: false,
                             lengthChange: false,
                             autoWidth: false,
-                            responsive: true,
+                            responsive: {
+                                details: {
+                                    type: 'inline',
+                                    target: 0
+                                }
+                            },
+                            columnDefs: [
+                                {
+                                    targets: 0,
+                                    className: 'all dtr-control'
+                                }
+                            ],
                             dom: 't'
+                        });
+
+                        requestAnimationFrame(function () {
+                            dataTable.columns.adjust();
+                            if (dataTable.responsive) {
+                                dataTable.responsive.recalc();
+                            }
                         });
                     }
                 });
@@ -364,8 +382,49 @@
         });
 
         document.body.addEventListener('click', function (event) {
+            const remarkToggle = event.target.closest('.remark-toggle');
+            const resetFilters = event.target.closest('[data-reset-filters="true"]');
             const seeMore = event.target.closest('.seeMore');
             const showLess = event.target.closest('.showLess');
+
+            if (remarkToggle) {
+                const detailRowId = remarkToggle.getAttribute('aria-controls');
+                const detailRow = document.getElementById(detailRowId);
+
+                if (!detailRow) {
+                    return;
+                }
+
+                const isExpanded = remarkToggle.getAttribute('aria-expanded') === 'true';
+                remarkToggle.setAttribute('aria-expanded', String(!isExpanded));
+                detailRow.classList.toggle('d-none', isExpanded);
+
+                const icon = remarkToggle.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('fa-plus', isExpanded);
+                    icon.classList.toggle('fa-minus', !isExpanded);
+                }
+
+                return;
+            }
+
+            if (resetFilters) {
+                const form = resetFilters.closest('form');
+
+                if (!form) {
+                    return;
+                }
+
+                form.reset();
+
+                if (window.jQuery && $.fn.select2) {
+                    $(form).find('.selectpicker').each(function () {
+                        $(this).val('').trigger('change');
+                    });
+                }
+
+                return;
+            }
 
             if (seeMore) {
                 const itemId = seeMore.dataset.id;
@@ -405,6 +464,31 @@
     .htmx-request .htmx-indicator,
     .htmx-request.htmx-indicator {
       opacity: 1;
+    }
+
+    .remark-toggle {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: #1e88e5;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    .remark-toggle:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.25);
+    }
+
+    .remark-row td {
+      background: #fff !important;
+      font-size: 14px;
+      line-height: 1.5;
     }
     </style>
 

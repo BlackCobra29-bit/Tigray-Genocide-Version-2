@@ -1,11 +1,11 @@
 {% load humanize %}
 
 <div class="card">
-  <div class="card-body">
-    <table id="example1" class="table table-bordered table-striped verified js-server-datatable">
+  <div class="card-body table-responsive">
+    <table id="example1" class="table table-bordered table-striped verified">
       <thead>
         <tr>
-          <td>Index</td>
+          <th>Index</th>
           <th>Full Name</th>
           <th>Gender</th>
           <th>Age</th>
@@ -14,13 +14,22 @@
           <th style="white-space: nowrap;">Woreda</th>
           <th>Source</th>
           <th style="white-space: nowrap;">Date of Event</th>
-          <th>Remark:</th>
         </tr>
       </thead>
       <tbody>
         {% for victim in civilian_victims %}
         <tr>
-          <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+          <td style="white-space: nowrap;">
+            <button
+              type="button"
+              class="remark-toggle"
+              aria-expanded="false"
+              aria-controls="verified-remark-{{ page_obj.number }}-{{ forloop.counter0 }}"
+            >
+              <i class="fa fa-plus"></i>
+            </button>
+            <span class="ml-2">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+          </td>
           <td style="white-space: nowrap;"><a href="/View-victim-info/{{ victim.id }}" style="color: inherit;">{{ victim.full_name.title }}</a></td>
           <td>{{ victim.gender }}</td>
           <td>{% if victim.age %}{{ victim.age }}{% else %}<i>Unknown</i>{% endif %}</td>
@@ -29,7 +38,10 @@
           <td>{{ victim.woreda }}</td>
           <td>{% include 'public_partials/source_links.html' with source=victim.source source_link=victim.source_link %}</td>
           <td>{% if victim.date_of_event %}{{ victim.date_of_event|date:"d-M-Y" }}{% else %}<i>Undated</i>{% endif %}</td>
-          <td style="white-space: nowrap;">
+        </tr>
+        <tr id="verified-remark-{{ page_obj.number }}-{{ forloop.counter0 }}" class="remark-row d-none">
+          <td colspan="9">
+            <strong>Remark:</strong>
             {% if victim.remark %}
               {% autoescape off %}
                 {{ victim.remark|urlize }}
@@ -41,7 +53,7 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="10" class="text-center"><span class="fa fa-search"></span> No matching victims found.</td>
+          <td colspan="9" class="text-center"><span class="fa fa-search"></span> No matching victims found.</td>
         </tr>
         {% endfor %}
       </tbody>

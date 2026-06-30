@@ -1,31 +1,49 @@
 <div class="card">
-  <div class="card-body">
-    <table id="example1" class="table table-bordered table-striped unverified js-server-datatable">
+  <div class="card-body table-responsive">
+    <table id="example1" class="table table-bordered table-striped unverified">
       <thead>
         <tr>
-          <td>Index</td>
+          <th>Index</th>
           <th>Location</th>
           <th>Number of Civilian Victims</th>
           <th>Atrocity</th>
           <th style="white-space: nowrap;">Woreda</th>
           <th>Source</th>
-          <th>Remark:</th>
         </tr>
       </thead>
       <tbody>
         {% for victim in civilian_victims %}
         <tr>
-          <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+          <td style="white-space: nowrap;">
+            <button
+              type="button"
+              class="remark-toggle"
+              aria-expanded="false"
+              aria-controls="unverified-remark-{{ page_obj.number }}-{{ forloop.counter0 }}"
+            >
+              <i class="fa fa-plus"></i>
+            </button>
+            <span class="ml-2">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+          </td>
           <td>{{ victim.location }}</td>
           <td>{{ victim.number_of_civilian }}</td>
           <td>{{ victim.perpetrator }}</td>
           <td>{{ victim.woreda }}</td>
           <td>{% include 'public_partials/source_links.html' with source=victim.source source_link=victim.source_link %}</td>
-          <td style="white-space: nowrap;">{% if victim.remark %}{{ victim.remark }}{% else %}<i>Unknown</i>{% endif %}</td>
+        </tr>
+        <tr id="unverified-remark-{{ page_obj.number }}-{{ forloop.counter0 }}" class="remark-row d-none">
+          <td colspan="6">
+            <strong>Remark:</strong>
+            {% if victim.remark %}
+              {{ victim.remark }}
+            {% else %}
+              <i>Unknown</i>
+            {% endif %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="text-center"><span class="fa fa-search"></span> No matching unidentified victims found.</td>
+          <td colspan="6" class="text-center"><span class="fa fa-search"></span> No matching unidentified victims found.</td>
         </tr>
         {% endfor %}
       </tbody>

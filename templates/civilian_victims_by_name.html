@@ -79,7 +79,7 @@
             <div class="col-lg-3">
               <div class="form-group">
                 <label for="victim-search"><span class="fa fa-search" style="color: blue;"></span> Filter by Name</label>
-                <input type="text" placeholder="filter by name" id="victim-search" name="q" value="{{ filters.q }}" class="form-control" style="height: 34px">
+                <input type="text" placeholder="filter by name" id="victim-search" name="q" value="{{ filters.q }}" class="form-control" style="height: 34px" hx-trigger="input changed delay:400ms, search">
               </div>
             </div>
 
@@ -137,14 +137,16 @@
             <div class="col-lg-2">
               <div class="form-group">
                 <br>
-                <button class="btn btn-primary" type="submit"><span class="fa fa-filter"></span> Apply</button>
-              </div>
-            </div>
-
-            <div class="col-lg-2">
-              <div class="form-group">
-                <br>
-                <a class="btn btn-danger" href="{% url 'civilian_victims_by_name' %}"><span class="fas fa-1x fa-sync-alt"></span> Reset Filters</a>
+                <button
+                  class="btn btn-danger"
+                  type="button"
+                  data-reset-filters="true"
+                  hx-get="{% url 'civilian_victims_by_name' %}"
+                  hx-select=".victim-results-fragment"
+                  hx-target="#victim-results"
+                  hx-swap="innerHTML"
+                  hx-push-url="true"
+                ><span class="fas fa-1x fa-sync-alt"></span> Reset Filters</button>
               </div>
             </div>
           </form>

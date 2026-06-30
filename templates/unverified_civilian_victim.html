@@ -70,7 +70,7 @@
             <div class="col-lg-3">
               <div class="form-group">
                 <label for="unverified-search"><span class="fa fa-search" style="color: blue;"></span> Filter by Location</label>
-                <input type="text" name="q" id="unverified-search" value="{{ filters.q }}" class="form-control" style="height: 34px" placeholder="filter by location">
+                <input type="text" name="q" id="unverified-search" value="{{ filters.q }}" class="form-control" style="height: 34px" placeholder="filter by location" hx-trigger="input changed delay:400ms, search">
               </div>
             </div>
 
@@ -104,14 +104,16 @@
             <div class="col-lg-2">
               <div class="form-group">
                 <br>
-                <button class="btn btn-primary" type="submit"><span class="fa fa-filter"></span> Apply</button>
-              </div>
-            </div>
-
-            <div class="col-lg-2">
-              <div class="form-group">
-                <br>
-                <a class="btn btn-danger" href="{% url 'unverified-civilian-victim' %}"><span class="fas fa-1x fa-sync-alt"></span> Reset Filters</a>
+                <button
+                  class="btn btn-danger"
+                  type="button"
+                  data-reset-filters="true"
+                  hx-get="{% url 'unverified-civilian-victim' %}"
+                  hx-select=".unverified-results-fragment"
+                  hx-target="#unverified-results"
+                  hx-swap="innerHTML"
+                  hx-push-url="true"
+                ><span class="fas fa-1x fa-sync-alt"></span> Reset Filters</button>
               </div>
             </div>
           </form>
