@@ -1,10 +1,81 @@
 {% extends 'base.html' %}
+
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Civilian Victim Search Results' subtitle='Filtered verified civilian victim records.' eyebrow='Search results' parent_label='Civilian Victims' parent_url='civilian_victims_by_name' %}
-<main class="container-xl page-section">
-  <section class="victim-section p-3 p-md-4">
-    <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="section-title h4 mb-0">Results</h2><a class="btn btn-outline-dark rounded-pill" href="{% url 'civilian-victim-photo-page' %}">Back to gallery</a></div>
-    <div class="row g-3" id="memorialGrid">{% for victim in result %}{% include 'public_partials/victim_card.html' with victim=victim only %}{% empty %}<div class="col-12"><div class="context-box">Sorry, no data is available for this search.</div></div>{% endfor %}</div>
+
+{% load static %}
+
+<main id="main">
+
+    <!-- ======= Breadcrumbs ======= -->
+    <div class="breadcrumbs">
+      <nav>
+        <div class="container">
+            <ol>
+              <li><a href="{% url 'app-index' %}">Home</a></li>
+              <li><a>By Photo</a></li>
+            </ol>
+        </div>
+      </nav>
+    </div><!-- End Breadcrumbs -->
+
+     <!-- ======= Civilian Victims Photo Section ======= -->
+  <section id="portfolio" class="portfolio sections-bg" style="padding-bottom: 200px">
+    <div class="container" data-aos="fade-up">
+      
+      <div class="section-header">
+        <h2><span class="fas fa-users"></span> Tigray Genocide: Virtual Museum</h2>
+        {% if result %}
+        <p><span class="fa fa-info-circle" style="color: green;"></span> Click on the civilian victim's name for more information.</p>
+      {% endif %}
+      </div>
+      
+      
+      
+    <div class="row">
+        <div class="col-lg-5">
+        </div>
+        <div class="col-lg-2">
+            <div class="form-group">
+                  <a href="{% url 'civilian-victim-photo-page' %}" class="btn btn-default btn-xs"><span class="fa fa-backward"></span> Back</a>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <br><br>
+      
+
+      <div class="portfolio-isotope" data-portfolio-filter="*" data-portfolio-layout="masonry"
+        data-portfolio-sort="original-order" data-aos="fade-up" data-aos-delay="100">
+
+        <div class="row gy-4 portfolio-container">
+            {% if result %} 
+            {% for victim in result %}
+            <div class="col-xl-2 col-md-6 portfolio-item filter-app col-md-55" id="col-md-55">
+              <div style="box-shadow: none;">
+              <a style="font-size: 12px; font-family: interstate,sans-serif; font-weight: bold;text-decoration: none;
+              font-weight: 700; color: #003b63; display: block; text-align: center; margin-top: 20px;" href="/View-victim-info/{{ victim.id }}" title="More Details">
+                <img src="{{ victim.picture.url }}" class="img-fluid" style="border-radius: 0px; height: 170px; width: auto; display: block; margin-left: auto; margin-right: auto; transition: none;" id="civilian_victim" alt="Civilian Victim">
+              <div>
+                <h4 >
+                    {{ victim.full_name.title }}
+                  </a>
+                  </h4>
+                </div>
+              </div>
+            </div>
+            <!-- End Portfolio Item -->
+            {% endfor %}
+            {% else %}
+                <h2 class="text-center" id="no-data"><span class="fa fa-search"></span> Sorry, no data available</h2>
+            {% endif %}
+
+        </div>
+
+      </div>
   </section>
-</main>
+  <!-- End civilian victim Section -->  
+
+  </main><!-- End #main -->
+
 {% endblock %}

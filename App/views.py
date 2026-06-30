@@ -1,17 +1,14 @@
 # import libraries to export SQL backup
 import subprocess
 import os
-import logging
-import tempfile
-import threading
 from django.conf import settings
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse
 from datetime import datetime
-from django.db.models import Count, Sum
-from django.core.cache import cache
-from django.views.decorators.cache import cache_page
+from django.db.models import Sum, Count
 # end of block
 from django.shortcuts import render, redirect
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 from .models import Civilian_victims
 from .models import Analysis_articles
 from .models import Article_comments
@@ -20,6 +17,7 @@ from .models import Photo_archive
 from .models import Video_archive
 from .models import Administrator
 from .models import Tigray_woreda
+from .models import Hero_images
 from .models import Webmail_password_manager
 from .models import Unverified_civilian
 from django.contrib import messages
@@ -56,89 +54,273 @@ import string
 import plotly.graph_objs as go
 from plotly.offline import plot
 import urllib.parse
-from django.utils.text import get_valid_filename, slugify
-from django.utils.html import escape
+from django.utils.text import slugify
 # to purse video url id
 from urllib.parse import urlparse, parse_qs
-
-logger = logging.getLogger(__name__)
 
 def custom_404_view(request, exception):
     
     return render(request, '404.html', status=404)
 
-@cache_page(300)  # Cache for 5 minutes (300 seconds)
+
+def get_random_instance(queryset):
+    total = queryset.count()
+    if total == 0:
+        return None
+    random_index = random.randrange(total)
+    return queryset.all()[random_index]
+
+
+def get_random_queryset(queryset, exclude_id=None, sample_size=10):
+    if exclude_id is not None:
+        queryset = queryset.exclude(id=exclude_id)
+    total = queryset.count()
+    if total <= sample_size:
+        return list(queryset)
+    random_indexes = random.sample(range(total), sample_size)
+    return [queryset.all()[index] for index in random_indexes]
+
+
+PUBLIC_TABLE_PAGE_SIZE = 10
+PUBLIC_GRID_BATCH_SIZE = 30
+PUBLIC_ARCHIVE_PAGE_SIZE = 30
+PUBLIC_ARTICLE_PAGE_SIZE = 12
+
+
+def is_htmx_request(request):
+    return request.headers.get('HX-Request') == 'true'
+
+
+def is_partial_request(request):
+    return (
+        is_htmx_request(request)
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    ) and request.headers.get('HX-Boosted') != 'true'
+
+
+def render_public_response(request, template_name, context, partial_template=None):
+    if partial_template and is_partial_request(request):
+        return render(request, partial_template, context)
+    return render(request, template_name, context)
+
+
+def get_public_woredas():
+    return cache.get_or_set(
+        'public_woreda_list',
+        list(Tigray_woreda.objects.only('woreda_name', 'latitude', 'longitude', 'zone')),
+        300,
+    )
+
+
+def paginate_request_queryset(request, queryset, per_page):
+    return Paginator(queryset, per_page).get_page(request.GET.get('page') or 1)
+
+
+def build_querystring(request, **updates):
+    params = request.GET.copy()
+    for key, value in updates.items():
+        if value in (None, ''):
+            params.pop(key, None)
+        else:
+            params[key] = str(value)
+    return params.urlencode()
+
+
+def get_verified_victim_queryset():
+    return Civilian_victims.objects.filter(approval=True).select_related('woreda').only(
+        'id',
+        'full_name',
+        'gender',
+        'age',
+        'perpetrator',
+        'place_of_killing',
+        'woreda__woreda_name',
+        'source',
+        'source_link',
+        'date_of_event',
+        'remark',
+        'picture',
+        'date_created',
+    )
+
+
+def filter_verified_victims(queryset, request):
+    query = request.GET.get('q', '').strip()
+    perpetrator = request.GET.get('perpetrator', '').strip()
+    woreda = request.GET.get('woreda', '').strip()
+    gender = request.GET.get('gender', '').strip()
+    sort = request.GET.get('sort', 'newest').strip()
+
+    if query:
+        queryset = queryset.filter(
+            Q(full_name__icontains=query)
+            | Q(place_of_killing__icontains=query)
+            | Q(source__icontains=query)
+            | Q(remark__icontains=query)
+        )
+    if perpetrator:
+        queryset = queryset.filter(perpetrator=perpetrator)
+    if woreda:
+        queryset = queryset.filter(woreda_id=woreda)
+    if gender:
+        queryset = queryset.filter(gender=gender)
+
+    sort_map = {
+        'newest': '-date_created',
+        'oldest': 'date_created',
+        'name': 'full_name',
+        'event_date': '-date_of_event',
+    }
+    return queryset.order_by(sort_map.get(sort, '-date_created'))
+
+
+def get_unverified_victim_queryset():
+    return Unverified_civilian.objects.select_related('woreda').only(
+        'id',
+        'location',
+        'number_of_civilian',
+        'perpetrator',
+        'woreda__woreda_name',
+        'source',
+        'source_link',
+        'remark',
+        'date_created',
+    )
+
+
+def filter_unverified_victims(queryset, request):
+    query = request.GET.get('q', '').strip()
+    perpetrator = request.GET.get('perpetrator', '').strip()
+    woreda = request.GET.get('woreda', '').strip()
+
+    if query:
+        queryset = queryset.filter(
+            Q(location__icontains=query)
+            | Q(source__icontains=query)
+            | Q(remark__icontains=query)
+        )
+    if perpetrator:
+        queryset = queryset.filter(perpetrator=perpetrator)
+    if woreda:
+        queryset = queryset.filter(woreda_id=woreda)
+    return queryset
+
+
+def get_victim_photo_queryset():
+    return get_verified_victim_queryset().only(
+        'id',
+        'full_name',
+        'picture',
+        'perpetrator',
+        'woreda__woreda_name',
+        'date_created',
+    )
+
+
+def get_photo_archive_queryset():
+    return Photo_archive.objects.select_related('woreda').only(
+        'id',
+        'location',
+        'woreda__woreda_name',
+        'date_of_event',
+        'description',
+        'photo',
+        'graphic',
+        'date_created',
+    )
+
+
+def build_victim_map(selected_woreda=None):
+    victim_counts = {
+        item['woreda']: item['total']
+        for item in Civilian_victims.objects.filter(approval=True, woreda__isnull=False)
+        .values('woreda')
+        .annotate(total=Count('id'))
+    }
+    woreda_list = get_public_woredas()
+    map_center = [13.881273, 39.127495]
+
+    if selected_woreda:
+        selected_obj = next((item for item in woreda_list if item.woreda_name == selected_woreda), None)
+        if selected_obj:
+            map_center = [selected_obj.latitude, selected_obj.longitude]
+
+    folium_map = folium.Map(location=map_center, zoom_start=10 if selected_woreda else 7, width='100%', height='100%')
+    folium.TileLayer('openstreetmap', attr='OpenStreetMap', name='OpenStreetMap', overlay=True).add_to(folium_map)
+    folium.LayerControl().add_to(folium_map)
+
+    for woreda in woreda_list:
+        if woreda.woreda_name == 'Other':
+            continue
+        victim_total = victim_counts.get(woreda.woreda_name, 0)
+        if not victim_total:
+            continue
+
+        popup_content = (
+            f'<b><a title="Get full information" href="/Civilina-victims-location-information/{slugify(woreda.woreda_name)}" '
+            f'target="_top">{woreda.woreda_name} Woreda</a></b><br>Civilian Victims: {victim_total}'
+        )
+        popup = folium.Popup(folium.Html(popup_content, script=True), max_width=300)
+        marker_kwargs = {'popup': popup}
+        if selected_woreda and woreda.woreda_name == selected_woreda:
+            marker_kwargs['icon'] = folium.Icon(color='red', icon='star')
+        folium.Marker((woreda.latitude, woreda.longitude), **marker_kwargs).add_to(folium_map)
+
+    return folium_map._repr_html_(), woreda_list
+
+
+@cache_page(60)
 def index(request):
+    random_hero_image = get_random_instance(Hero_images.objects.only('hero_image'))
+
     count_civilian = Civilian_victims.objects.filter(approval=True).count()
     count_articles = Analysis_articles.objects.filter(approval=True, draft=False).count()
-    count_panel = Webinar.objects.all().count()
-    count_photo = Photo_archive.objects.all().count()
-    count_video = Video_archive.objects.all().count()
+    count_panel = Webinar.objects.count()
+    count_photo = Photo_archive.objects.count()
+    count_video = Video_archive.objects.count()
 
-    # Fetch public preview data with relations already loaded for templates.
-    civilian_victims = (
-        Civilian_victims.objects
-        .filter(approval=True)
-        .exclude(Q(picture='civilian_victims_pic/default.png') | Q(picture='civilian_victims_pic/default_female.jpg'))
-        .select_related('woreda')
-        .only(
-            'id', 'full_name', 'gender', 'picture', 'zone', 'woreda',
-            'perpetrator', 'place_of_killing', 'date_created',
-        )[:30]
-    )
-    analysis_articles = (
-        Analysis_articles.objects
-        .filter(approval=True, draft=False)
-        .select_related('author', 'author__administrator')
-        .only(
-            'id', 'title', 'thumbnail', 'date_created',
-            'author__first_name', 'author__last_name',
-            'author__administrator__admin_photo',
-        )[:9]
-    )
-    photo_archives = (
-        Photo_archive.objects
-        .select_related('woreda')
-        .only(
-            'id', 'location', 'woreda', 'date_of_event', 'description',
-            'photo', 'graphic', 'date_created',
-        )[:12]
-    )
-    video_archives = Video_archive.objects.all()[:12]
+    civilian_victims = get_verified_victim_queryset().exclude(
+        Q(picture='civilian_victims_pic/default.png') | Q(picture='civilian_victims_pic/default_female.jpg')
+    )[:30]
+    analysis_articles = Analysis_articles.objects.filter(approval=True, draft=False).select_related(
+        'author', 'author__administrator'
+    ).only(
+        'id', 'title', 'thumbnail', 'date_created', 'author__first_name', 'author__last_name',
+        'author__administrator__admin_photo'
+    )[:9]
+    photo_archives = get_photo_archive_queryset()[:12]
+    video_archives = Video_archive.objects.select_related('woreda').only(
+        'id', 'description', 'location', 'woreda__woreda_name', 'online_link', 'date_created', 'date_of_event'
+    )[:12]
 
-    total_unverified = Unverified_civilian.objects.aggregate(
-        total=Sum('number_of_civilian', default=0)
-    )['total'] or 0
-    total_civilians_sum = count_civilian + total_unverified
+    # line chart
+    zone_list = ['Western Tigray', 'Eastern Tigray', 'Central Tigray', 'North Western Tigray',
+                 'Southern Tigray', 'South Eastern Tigray', 'Mekelle Special', 'Other']
 
-    zone_list = [
-        'Western Tigray', 'Eastern Tigray', 'Central Tigray',
-        'North Western Tigray', 'Southern Tigray', 'South Eastern Tigray',
-        'Mekelle Special', 'Other',
-    ]
-    verified_by_zone = dict(
-        Civilian_victims.objects
-        .filter(approval=True)
-        .values('zone')
-        .annotate(cnt=Count('id'))
-        .values_list('zone', 'cnt')
-    )
-    unverified_by_zone = dict(
-        Unverified_civilian.objects
-        .values('zone')
-        .annotate(total=Sum('number_of_civilian', default=0))
-        .values_list('zone', 'total')
-    )
+    zone_counts_verified = {
+        item['zone']: item['count']
+        for item in Civilian_victims.objects.filter(approval=True).values('zone').annotate(count=Count('id'))
+    }
+    zone_counts_unverified = {
+        item['zone']: item['total']
+        for item in Unverified_civilian.objects.values('zone').annotate(total=Sum('number_of_civilian'))
+    }
+
     line_chart_data_points = [
-        (verified_by_zone.get(zone, 0) or 0) + (unverified_by_zone.get(zone, 0) or 0)
+        zone_counts_verified.get(zone, 0) + zone_counts_unverified.get(zone, 0)
         for zone in zone_list
     ]
-    line_chart_items_percentage = [
-        round((item * 100) / total_civilians_sum, 2) if total_civilians_sum else 0
-        for item in line_chart_data_points
-    ]
 
-    age_buckets = Civilian_victims.objects.filter(approval=True).aggregate(
+    total_unverified = Unverified_civilian.objects.aggregate(total=Sum('number_of_civilian'))['total'] or 0
+    total_count = count_civilian + total_unverified
+    if total_count == 0:
+        line_chart_items_percentage = [0] * len(line_chart_data_points)
+    else:
+        line_chart_items_percentage = [round((value * 100) / total_count, 2) for value in line_chart_data_points]
+
+
+    # bar chart
+    age_aggregates = Civilian_victims.objects.filter(approval=True).aggregate(
         age_0_10=Count('id', filter=Q(age__gt=0, age__lt=11)),
         age_11_17=Count('id', filter=Q(age__gte=11, age__lt=18)),
         age_18_32=Count('id', filter=Q(age__gte=18, age__lt=33)),
@@ -146,355 +328,256 @@ def index(request):
         age_49_63=Count('id', filter=Q(age__gte=49, age__lt=64)),
         age_64_79=Count('id', filter=Q(age__gte=64, age__lt=80)),
         age_80_94=Count('id', filter=Q(age__gte=80, age__lt=95)),
-        age_unknown=Count('id', filter=Q(age=None)),
+        age_unknown=Count('id', filter=Q(age__isnull=True))
     )
+
     bar_chart_data_points = [
-        age_buckets['age_0_10'],
-        age_buckets['age_11_17'],
-        age_buckets['age_18_32'],
-        age_buckets['age_33_48'],
-        age_buckets['age_49_63'],
-        age_buckets['age_64_79'],
-        age_buckets['age_80_94'],
-        age_buckets['age_unknown'],
-    ]
-    bar_chart_items_percentage = [
-        round((item * 100) / count_civilian, 2) if count_civilian else 0
-        for item in bar_chart_data_points
+        age_aggregates['age_0_10'] or 0,
+        age_aggregates['age_11_17'] or 0,
+        age_aggregates['age_18_32'] or 0,
+        age_aggregates['age_33_48'] or 0,
+        age_aggregates['age_49_63'] or 0,
+        age_aggregates['age_64_79'] or 0,
+        age_aggregates['age_80_94'] or 0,
+        age_aggregates['age_unknown'] or 0
     ]
 
-    perpetrator_choices = Civilian_victims.Perpetrator_Choices
+    if count_civilian == 0:
+        bar_chart_items_percentage = [0] * len(bar_chart_data_points)
+    else:
+        bar_chart_items_percentage = [round((value * 100) / count_civilian, 2) for value in bar_chart_data_points]
+
+
+    # Pie Chart
+
     perpetrator_list = [
-        perpetrator_choices[0][0],
-        perpetrator_choices[3][0],
-        perpetrator_choices[1][0],
-        perpetrator_choices[2][0],
-        perpetrator_choices[4][0],
-        perpetrator_choices[5][0],
+        'Died from lack of food',
+        'Killed by Eritrean forces',
+        'Died from lack of medicine',
+        'Killed by Ethiopian forces',
+        'Killed by Ethiopian and Eritrean forces',
+        'Killed by Amhara militia and Fano'
     ]
-    verified_by_perpetrator = dict(
-        Civilian_victims.objects
-        .filter(approval=True)
-        .values('perpetrator')
-        .annotate(cnt=Count('id'))
-        .values_list('perpetrator', 'cnt')
+
+    perpetrator_counts_verified = {
+        item['perpetrator']: item['count']
+        for item in Civilian_victims.objects.filter(approval=True).values('perpetrator').annotate(count=Count('id'))
+    }
+    perpetrator_counts_unverified = {
+        item['perpetrator']: item['total']
+        for item in Unverified_civilian.objects.values('perpetrator').annotate(total=Sum('number_of_civilian'))
+    }
+
+    pi_chart_data_points = []
+    verified_legend = []
+    for item in perpetrator_list:
+        total_items = perpetrator_counts_verified.get(item, 0) + perpetrator_counts_unverified.get(item, 0)
+        if total_items > 0 and total_count > 0:
+            pi_chart_data_points.append(total_items)
+            verified_legend.append(f"{item} ({round((total_items / total_count) * 100, 1)}%)")
+
+    pie_chart = go.Figure(data=[go.Pie(labels=verified_legend, values=pi_chart_data_points,
+                hoverinfo='label+value', textinfo='value+percent', textposition='inside')])
+
+    pie_chart.update_layout(
+        autosize=True,
+        height=360,
+        margin=dict(l=0, r=0, t=0, b=0),
+        legend=dict(orientation='h', yanchor='top', y=1, x=0)
     )
-    unverified_by_perpetrator = dict(
-        Unverified_civilian.objects
-        .values('perpetrator')
-        .annotate(total=Sum('number_of_civilian', default=0))
-        .values_list('perpetrator', 'total')
+
+    pie_chart.update_traces(
+        marker=dict(colors=['rgb(13, 93, 149)', 'rgb(36, 102, 71)', '#2ca02c', '#d62728', 'rgb(126, 34, 189)', 'rgb(121, 53, 40)']),
+        domain=dict(y=[0, 0.6]),
+        textinfo='value+percent',
+        textfont=dict(color='white', size=14)
     )
-    pi_chart_data_points = [
-        (verified_by_perpetrator.get(item, 0) or 0)
-        + (unverified_by_perpetrator.get(item, 0) or 0)
-        for item in perpetrator_list
-    ]
+    # Doughnut Chart
 
     gender_list = ['Male', 'Female', 'Unknown']
-    verified_by_gender = dict(
-        Civilian_victims.objects
-        .filter(approval=True)
-        .values('gender')
-        .annotate(cnt=Count('id'))
-        .values_list('gender', 'cnt')
-    )
-    doughnut_chart_data_points = [
-        verified_by_gender.get(item, 0) or 0
-        for item in gender_list
-    ]
+    gender_counts_verified = {
+        item['gender']: item['count']
+        for item in Civilian_victims.objects.filter(approval=True).values('gender').annotate(count=Count('id'))
+    }
 
+    total_gender_count = sum(gender_counts_verified.get(gender, 0) for gender in gender_list)
+
+    verified_legend = []
+    doughnut_chart_data_points = []
+    for gender in gender_list:
+        count_items = gender_counts_verified.get(gender, 0)
+        if count_items > 0 and total_gender_count > 0:
+            doughnut_chart_data_points.append(count_items)
+            verified_legend.append(f"{gender} ({round((count_items / total_gender_count) * 100, 1)}%)")
+
+    # Create the donut chart
+
+    donut_chart = go.Figure(data=[go.Pie(labels=verified_legend, values=doughnut_chart_data_points, hole=0.5, 
+
+            hoverinfo='label+value', textposition='inside', textinfo='value+percent')])
+
+    # Update the layout to increase width and height
+    donut_chart.update_layout(
+    autosize=True,  # Enable autosizing to make the chart responsive
+    height=320,
+    margin=dict(l=0, r=0, t=0, b=0),  # Adjust margin as needed
+    legend=dict(orientation="h", yanchor="top", y=1, x=0),  # Position legend at the top
+)
+
+    donut_chart.update_traces(marker=dict(colors=['rgb(102, 73, 36)', 'rgb(214, 39, 40)', 'rgb(36, 102, 71)']),
+
+        domain=dict(y=[0, 0.72]), textinfo='value+percent', textfont=dict(color='white', size=14))
+
+
+
+    # Convert the chart to HTML
+
+    doughnut_plot_div = plot(donut_chart, output_type='div')
+
+    # get sum of unverified ciivilians
+    total_civilians = Unverified_civilian.objects.aggregate(total_civilians=Sum('number_of_civilian'))['total_civilians'] or 0
+    
     context = {
+        # counter data
         'count_civilian': count_civilian,
         'count_articles': count_articles,
         'count_panel': count_panel,
         'count_photo': count_photo,
         'count_video': count_video,
-        'count_unverified_civilian': total_unverified,
+        'count_unverified_civilian':total_civilians,
+        # hero image object
+        'hero_image': random_hero_image.hero_image.url if random_hero_image else '',
+        # section data
         'civilian_victims': civilian_victims,
         'analysis_articles': analysis_articles,
+        # Chart data
         'line_data_points': line_chart_data_points,
         'bar_data_points': bar_chart_data_points,
         'bar_chart_items_percentage': bar_chart_items_percentage,
         'line_chart_items_percentage': line_chart_items_percentage,
         'photo_archives': photo_archives,
         'video_archives': video_archives,
-        'pi_data_points': pi_chart_data_points,
-        'doughnut_data_points': doughnut_chart_data_points,
+        'pi_data_points': pie_chart.to_html(full_html=False),
+        'doughnut_data_points': doughnut_plot_div,
+        'home_page_config': {
+            'counts': {
+                'civilian': count_civilian,
+                'unverified': total_civilians,
+                'articles': count_articles,
+                'photo': count_photo,
+                'video': count_video,
+            },
+            'lineDataPoints': line_chart_data_points,
+            'linePercentages': line_chart_items_percentage,
+            'barDataPoints': bar_chart_data_points,
+            'barPercentages': bar_chart_items_percentage,
+        },
     }
 
     return render(request, 'index.html', context)
 
+
 def civilian_victims_by_name(request):
-    filters = {
-        'name': request.GET.get('name', '').strip(),
-        'atrocity': request.GET.get('atrocity', '').strip(),
-        'woreda': request.GET.get('woreda', '').strip(),
-        'gender': request.GET.get('gender', '').strip(),
-    }
-    
-    # Generate cache key based on filters and pagination
-    cache_key = f'victims_by_name:{":".join(filters.values())}:page:{request.GET.get("page", 1)}'
-    
-    is_partial = request.headers.get('HX-Boosted') != 'true' and (
-        request.headers.get('HX-Request') == 'true'
-        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    )
-    
-    # Try to get from cache for partial requests
-    if is_partial:
-        cached_response = cache.get(cache_key)
-        if cached_response:
-            return render(request, 'public_partials/civilian_victim_results.html', cached_response)
-
-    civilian_victims = (
-        Civilian_victims.objects
-        .filter(approval=True)
-        .select_related('woreda')
-        .only(
-            'id', 'full_name', 'gender', 'age', 'perpetrator',
-            'place_of_killing', 'woreda', 'source', 'source_link',
-            'date_of_event', 'remark', 'date_created',
-        )
-    )
-
-    if filters['name']:
-        civilian_victims = civilian_victims.filter(full_name__icontains=filters['name'])
-    if filters['atrocity']:
-        civilian_victims = civilian_victims.filter(perpetrator=filters['atrocity'])
-    if filters['woreda']:
-        civilian_victims = civilian_victims.filter(woreda_id=filters['woreda'])
-    if filters['gender']:
-        civilian_victims = civilian_victims.filter(gender=filters['gender'])
-
-    paginator = Paginator(civilian_victims, 10)
-    page = paginator.get_page(request.GET.get('page'))
-    has_filters = any(filters.values())
-    total_count = (
-        Civilian_victims.objects.filter(approval=True).count()
-        if has_filters else paginator.count
-    )
-
-    pagination_params = request.GET.copy()
-    pagination_params.pop('page', None)
-
+    filtered_queryset = filter_verified_victims(get_verified_victim_queryset(), request)
+    page_obj = paginate_request_queryset(request, filtered_queryset, PUBLIC_TABLE_PAGE_SIZE)
     context = {
-        'page': page,
-        'page_offset': page.start_index() - 1 if paginator.count else 0,
-        'total_count': total_count,
-        'filtered_count': paginator.count,
-        'filters': filters,
-        'pagination_query': pagination_params.urlencode(),
-        'atrocity_choices': Civilian_victims.Perpetrator_Choices,
-        'gender_choices': Civilian_victims.Gender_Choices,
-        'woreda_list': Tigray_woreda.objects.only('woreda_name'),
+        'page_obj': page_obj,
+        'page': page_obj,
+        'civilian_victims': page_obj.object_list,
+        'total_count': filtered_queryset.count(),
+        'filtered_count': filtered_queryset.count(),
+        'woreda_list': get_public_woredas(),
+        'filters': {
+            'q': request.GET.get('q', '').strip(),
+            'perpetrator': request.GET.get('perpetrator', '').strip(),
+            'woreda': request.GET.get('woreda', '').strip(),
+            'gender': request.GET.get('gender', '').strip(),
+            'sort': request.GET.get('sort', 'newest').strip(),
+        },
+        'querystring_builder': request.GET.urlencode(),
     }
-
-    # Cache partial responses for 30 minutes
-    if is_partial:
-        cache.set(cache_key, context, 1800)
-        return render(request, 'public_partials/civilian_victim_results.html', context)
-    
-    template_name = 'civilian_victims_by_name.html'
-    return render(request, template_name, context)
+    return render_public_response(
+        request,
+        'civilian_victims_by_name.html',
+        context,
+        partial_template='public_partials/civilian_victim_results.html',
+    )
 
 def Civilian_victim_photo_page(request):
-    filters = {
-        'name': request.GET.get('name', '').strip(),
-        'atrocity': request.GET.get('atrocity', '').strip(),
-        'woreda': request.GET.get('woreda', '').strip(),
-    }
-    
-    # Generate cache key based on filters and pagination
-    cache_key = f'victims_photo:{":".join(filters.values())}:page:{request.GET.get("page", 1)}'
-    
-    # Check if it's an HTMX partial request
-    is_htmx_request = request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Boosted') != 'true'
-    
-    # Try to get from cache for HTMX requests
-    if is_htmx_request:
-        cached_response = cache.get(cache_key)
-        if cached_response:
-            return render(request, 'public_partials/victim_photo_batch.html', cached_response)
-
-    civilian_data = (
-        Civilian_victims.objects
-        .filter(approval=True)
-        .select_related('woreda')
-        .only(
-            'id', 'full_name', 'gender', 'picture', 'zone', 'woreda',
-            'perpetrator', 'place_of_killing', 'date_created',
-        )
-    )
-
-    if filters['name']:
-        civilian_data = civilian_data.filter(full_name__icontains=filters['name'])
-    if filters['atrocity']:
-        civilian_data = civilian_data.filter(perpetrator=filters['atrocity'])
-    if filters['woreda']:
-        civilian_data = civilian_data.filter(woreda_id=filters['woreda'])
-
-    paginator = Paginator(civilian_data, 30)
-    page = paginator.get_page(request.GET.get('page'))
-    pagination_params = request.GET.copy()
-    pagination_params.pop('page', None)
-
+    filtered_queryset = filter_verified_victims(get_victim_photo_queryset(), request)
+    page_obj = paginate_request_queryset(request, filtered_queryset, PUBLIC_GRID_BATCH_SIZE)
     context = {
-        'page': page,
-        'filtered_count': paginator.count,
-        'filters': filters,
-        'pagination_query': pagination_params.urlencode(),
-        'atrocity_choices': Civilian_victims.Perpetrator_Choices,
-        'woreda_list': Tigray_woreda.objects.only('woreda_name'),
+        'page_obj': page_obj,
+        'page': page_obj,
+        'civilian_queryset': page_obj.object_list,
+        'filtered_count': filtered_queryset.count(),
+        'woreda_list': get_public_woredas(),
+        'filters': {
+            'q': request.GET.get('q', '').strip(),
+            'perpetrator': request.GET.get('perpetrator', '').strip(),
+            'woreda': request.GET.get('woreda', '').strip(),
+        },
+        'next_querystring': build_querystring(request, page=page_obj.next_page_number()) if page_obj.has_next() else '',
     }
-
-    # Cache HTMX partial responses for 30 minutes
-    if is_htmx_request:
-        cache.set(cache_key, context, 1800)
+    if is_partial_request(request) and (request.GET.get('append') == '1' or request.GET.get('page')):
         return render(request, 'public_partials/victim_photo_batch.html', context)
-    
-    template_name = 'civilin_vicitm_photo_page.html'
-    return render(request, template_name, context)
+    return render_public_response(request, 'civilin_vicitm_photo_page.html', context)
     
 # a method view to search a specfic civilian victim
 def Search_civilian(request):
-    
-    # define context variable with in scope of the function
-    context = {}
-    
-    selected_atrocity = request.GET.get('atrocity')
-    selected_woreda = request.GET.get('woreda')
-    
-    if selected_atrocity:
-        get_search_result = Civilian_victims.objects.filter(perpetrator=selected_atrocity, approval=True)
-        
-        context = {
-            'result': get_search_result
-        }
-        
-    if selected_woreda:
-        Woreda_obj = Tigray_woreda.objects.get(woreda_name = selected_woreda)
-        get_search_result = Civilian_victims.objects.filter(woreda=Woreda_obj, approval=True)
-        
-        context = {
-            'result': get_search_result
-        }
-
-    return render(request, 'search_civilian_victim.html', context)
-
-
-def _woredas_with_victim_counts():
-    return list(
-        Tigray_woreda.objects
-        .annotate(
-            victim_count=Count(
-                'civilian_victims',
-                filter=Q(civilian_victims__approval=True),
-            )
-        )
-        .only('woreda_name', 'latitude', 'longitude')
-    )
-
-
-def _render_victim_location_map(woreda_list, selected_woreda=None):
-    selected_name = selected_woreda.woreda_name if selected_woreda else ''
-    cache_key = f'victim-location-map-v2:{slugify(selected_name) or "all"}'
-    cached_map = cache.get(cache_key)
-    if cached_map is not None:
-        return cached_map
-
-    center = (
-        [selected_woreda.latitude, selected_woreda.longitude]
-        if selected_woreda else [13.881273, 39.127495]
-    )
-    location_map = folium.Map(
-        location=center,
-        zoom_start=10 if selected_woreda else 7,
-        width='100%',
-        height='100%',
-        tiles='OpenStreetMap',
-    )
-
-    for woreda in woreda_list:
-        if woreda.woreda_name == 'Other' or not woreda.victim_count:
-            continue
-
-        detail_url = reverse(
-            'civilian-victim-map-info-page',
-            args=[slugify(woreda.woreda_name)],
-        )
-        popup_content = (
-            f'<b><a title="Get full information" href="{detail_url}" '
-            f'target="_top">{escape(woreda.woreda_name)} Woreda</a></b>'
-            f'<br>Civilian Victims: {woreda.victim_count}'
-        )
-        marker_options = {
-            'location': (woreda.latitude, woreda.longitude),
-            'popup': folium.Popup(popup_content, max_width=300),
-        }
-        if selected_name == woreda.woreda_name:
-            marker_options['icon'] = folium.Icon(color='red', icon='star')
-        folium.Marker(**marker_options).add_to(location_map)
-
-    map_html = location_map._repr_html_()
-    cache.set(cache_key, map_html, 300)
-    return map_html
+    query_params = {}
+    if request.GET.get('atrocity'):
+        query_params['perpetrator'] = request.GET.get('atrocity')
+    if request.GET.get('woreda'):
+        query_params['woreda'] = request.GET.get('woreda')
+    if request.GET.get('q'):
+        query_params['q'] = request.GET.get('q')
+    querystring = urllib.parse.urlencode(query_params)
+    return redirect(f"{reverse('civilian-victim-photo-page')}?{querystring}" if querystring else reverse('civilian-victim-photo-page'))
 
 
 def Civilian_victim_by_map(request):
-    # Cache for 10 minutes (600 seconds) - map data doesn't change frequently
-    cache_key = 'civilian_victim_map_data'
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return render(request, 'civilian_victims_map.html', cached_data)
-    
-    woreda_list = _woredas_with_victim_counts()
+    geolocation, woreda_list = build_victim_map()
     context = {
-        'geolocation': _render_victim_location_map(woreda_list),
+        'geolocation': geolocation,
         'woreda_list': woreda_list,
     }
-    cache.set(cache_key, context, 600)
+
     return render(request, 'civilian_victims_map.html', context)
 
-
-@cache_page(600)  # Cache for 10 minutes
 def Civilian_victim_by_map_info(request, woreda_pr):
-    woreda_list = _woredas_with_victim_counts()
-    requested_slug = slugify(woreda_pr)
-    selected_woreda = next(
-        (woreda for woreda in woreda_list if slugify(woreda.woreda_name) == requested_slug),
-        None,
-    )
-    if selected_woreda is None:
-        raise Http404('Woreda not found')
-
-    civilian_victims = (
-        Civilian_victims.objects
-        .filter(woreda=selected_woreda, approval=True)
-        .select_related('woreda')
-        .only(
-            'id', 'full_name', 'gender', 'age', 'perpetrator',
-            'place_of_killing', 'woreda', 'source', 'source_link',
-            'date_of_event', 'remark', 'date_created',
-        )
-    )
-    paginator = Paginator(civilian_victims, 25)
-    page = paginator.get_page(request.GET.get('page'))
+    woreda_pr = woreda_pr.title().replace('-', ' ')
+    geolocation, woreda_list = build_victim_map(selected_woreda=woreda_pr)
+    civilian_victims_by_woreda = get_verified_victim_queryset().filter(woreda_id=woreda_pr)
+    page_obj = paginate_request_queryset(request, civilian_victims_by_woreda, 25)
 
     context = {
-        'geolocation': _render_victim_location_map(woreda_list, selected_woreda),
-        'civilian_victims': page.object_list,
-        'page': page,
-        'page_offset': page.start_index() - 1 if paginator.count else 0,
-        'selected_woreda': selected_woreda,
+        'geolocation': geolocation,
+        'civilian_victims': page_obj.object_list,
+        'page': page_obj,
         'woreda_list': woreda_list,
     }
+    
     return render(request, 'civilian_victims_map_info.html', context)
 
-@cache_page(1800)  # Cache for 30 minutes
 def view_victim_info(request, id):
-
-    civilian_victim_item = Civilian_victims.objects.get(id=id, approval=True)
+    civilian_victim_item = get_object_or_404(
+        Civilian_victims.objects.filter(approval=True).select_related('woreda').only(
+            'id',
+            'full_name',
+            'gender',
+            'age',
+            'perpetrator',
+            'place_of_killing',
+            'woreda__woreda_name',
+            'source',
+            'source_link',
+            'date_of_event',
+            'remark',
+            'picture',
+        ),
+        id=id,
+    )
 
     context = {
         'item': civilian_victim_item
@@ -503,100 +586,65 @@ def view_victim_info(request, id):
     return render(request, 'view_victim_info.html', context)
 
 def unverified_civilian_victims_by_name(request):
-    filters = {
-        'atrocity': request.GET.get('atrocity', '').strip(),
-        'woreda': request.GET.get('woreda', '').strip(),
-    }
-    
-    # Generate cache key based on filters and pagination
-    cache_key = f'unverified_victims:{":".join(filters.values())}:page:{request.GET.get("page", 1)}'
-    
-    is_partial = request.headers.get('HX-Boosted') != 'true' and (
-        request.headers.get('HX-Request') == 'true'
-        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    )
-    
-    # Try to get from cache for HTMX requests
-    if is_partial:
-        cached_response = cache.get(cache_key)
-        if cached_response:
-            return render(request, 'public_partials/unverified_results.html', cached_response)
-
-    civilian_victims = (
-        Unverified_civilian.objects
-        .select_related('woreda')
-        .only(
-            'id', 'location', 'number_of_civilian', 'perpetrator',
-            'woreda', 'source', 'source_link', 'remark', 'date_created',
-        )
-    )
-    if filters['atrocity']:
-        civilian_victims = civilian_victims.filter(perpetrator=filters['atrocity'])
-    if filters['woreda']:
-        civilian_victims = civilian_victims.filter(woreda_id=filters['woreda'])
-
-    paginator = Paginator(civilian_victims, 10)
-    page = paginator.get_page(request.GET.get('page'))
-    pagination_params = request.GET.copy()
-    pagination_params.pop('page', None)
-
+    filtered_queryset = filter_unverified_victims(get_unverified_victim_queryset(), request)
+    page_obj = paginate_request_queryset(request, filtered_queryset, PUBLIC_TABLE_PAGE_SIZE)
     context = {
-        'page': page,
-        'page_offset': page.start_index() - 1 if paginator.count else 0,
-        'filtered_count': paginator.count,
-        'filters': filters,
-        'pagination_query': pagination_params.urlencode(),
+        'page_obj': page_obj,
+        'page': page_obj,
+        'civilian_victims': page_obj.object_list,
+        'filtered_count': filtered_queryset.count(),
+        'total_civilians': filtered_queryset.aggregate(total_civilians=Sum('number_of_civilian'))['total_civilians'] or 0,
+        'woreda_list': get_public_woredas(),
+        'filters': {
+            'q': request.GET.get('q', '').strip(),
+            'perpetrator': request.GET.get('perpetrator', '').strip(),
+            'woreda': request.GET.get('woreda', '').strip(),
+        },
     }
 
-    if is_partial:
-        # Cache HTMX partial responses for 30 minutes
-        cache.set(cache_key, context, 1800)
-        return render(request, 'public_partials/unverified_results.html', context)
-
-    context.update({
-        'total_civilians': Unverified_civilian.objects.aggregate(
-            total=Sum('number_of_civilian', default=0)
-        )['total'],
-        'atrocity_choices': Unverified_civilian.Perpetrator_Choices,
-        'woreda_list': Tigray_woreda.objects.only('woreda_name'),
-    })
-
-    return render(request, 'unverified_civilian_victim.html', context)
-
-
-@cache_page(1800)  # Cache for 30 minutes
-def View_article(request, id):
-
-    # get random articles
-    random_analysis_articles = Analysis_articles.objects.exclude(
-        id=id).exclude(approval=False).exclude(draft=True).order_by('?')[:10]
-
-    # get number of articles under general categories
-    general_articles = Analysis_articles.objects.filter(Q(approval = True)
-    & Q(endf_related = False) & Q(personal_account = False) & Q(draft = False)).count()
-
-    # get number of articles under tegaru Ex-ENDF categories
-    endf_articles = Analysis_articles.objects.filter(Q(approval = True)
-    & Q(endf_related = True) & Q(draft = False)).count()
-
-    # get number of articles under personal accounts categories
-    personal_acc = Analysis_articles.objects.filter(Q(approval = True)
-     & Q(personal_account = True) & Q(draft = False)).count()
-
-    analysis_article_item = (
-        Analysis_articles.objects
-        .select_related('author')
-        .get(id=id, approval=True, draft=False)
+    return render_public_response(
+        request,
+        'unverified_civilian_victim.html',
+        context,
+        partial_template='public_partials/unverified_results.html',
     )
 
-    analysis_article_comments = Article_comments.objects.filter(
-        article=analysis_article_item)
+
+def View_article(request, id):
+    article_queryset = Analysis_articles.objects.filter(approval=True, draft=False).select_related(
+        'author', 'author__administrator'
+    ).only(
+        'id',
+        'title',
+        'thumbnail',
+        'content',
+        'endf_related',
+        'personal_account',
+        'date_created',
+        'author__first_name',
+        'author__last_name',
+        'author__administrator__admin_photo',
+    )
+    random_analysis_articles = get_random_queryset(
+        article_queryset.only('id', 'title', 'thumbnail', 'date_created'),
+        exclude_id=id,
+        sample_size=10,
+    )
+    article_counts = Analysis_articles.objects.filter(approval=True, draft=False).aggregate(
+        general_articles=Count('id', filter=Q(endf_related=False, personal_account=False)),
+        endf_articles=Count('id', filter=Q(endf_related=True)),
+        personal_acc=Count('id', filter=Q(personal_account=True)),
+    )
+    analysis_article_item = get_object_or_404(article_queryset, id=id)
+    analysis_article_comments = Article_comments.objects.filter(article=analysis_article_item).only(
+        'name', 'content', 'date_created'
+    )
 
     context = {
         'random_articles': random_analysis_articles,
-        'general_articles': general_articles,
-        'endf_articles': endf_articles,
-        'personal_acc': personal_acc,
+        'general_articles': article_counts['general_articles'],
+        'endf_articles': article_counts['endf_articles'],
+        'personal_acc': article_counts['personal_acc'],
         'item': analysis_article_item,
         'comments': analysis_article_comments
     }
@@ -621,18 +669,13 @@ def Article_comment(request, article_id):
 
 
 def Articles_page(request):
-
-    total_articles = (
-        Analysis_articles.objects
-        .filter(approval=True, draft=False)
-        .select_related('author', 'author__administrator')
+    total_articles = Analysis_articles.objects.filter(approval=True, draft=False).select_related(
+        'author', 'author__administrator'
+    ).only(
+        'id', 'title', 'thumbnail', 'date_created', 'author__first_name', 'author__last_name',
+        'author__administrator__admin_photo'
     )
-
-    paginator = Paginator(total_articles, 12)
-
-    page_number = request.GET.get('page', 1)
-
-    page = paginator.get_page(page_number)
+    page = paginate_request_queryset(request, total_articles, PUBLIC_ARTICLE_PAGE_SIZE)
 
     context = {
         'page': page
@@ -640,87 +683,50 @@ def Articles_page(request):
 
     return render(request, 'analysis_articles_page.html', context)
 
-@cache_page(1800)  # Cache for 30 minutes
 def General_category_articles(request, category):
-
-    from App.seo_config import ARTICLE_CATEGORY_SEO
-
-    category_meta = ARTICLE_CATEGORY_SEO.get(category, ARTICLE_CATEGORY_SEO['general'])
-
-    # if the selected category is "General"
+    article_queryset = Analysis_articles.objects.filter(approval=True, draft=False).select_related(
+        'author', 'author__administrator'
+    ).only(
+        'id', 'title', 'thumbnail', 'date_created', 'author__first_name', 'author__last_name',
+        'author__administrator__admin_photo'
+    )
     if category == 'general':
-        general_articles = (
-            Analysis_articles.objects
-            .filter(Q(approval = True)
-                    & Q(endf_related = False) & Q(personal_account = False) & Q(draft = False))
-            .select_related('author', 'author__administrator')
-        )
-
-        paginator = Paginator(general_articles, 12)
-
-    # if the selected category is "Personal accounts"
-    if category == 'personal':
-        personal_articles = (
-            Analysis_articles.objects
-            .filter(Q(approval = True)
-                    & Q(personal_account = True) & Q(draft = False))
-            .select_related('author', 'author__administrator')
-        )
-
-        paginator = Paginator(personal_articles, 12)
-        
-    # if the selected category is "ENDF related"
-    if category == 'endf':
-        endf_articles = (
-            Analysis_articles.objects
-            .filter(Q(approval = True)
-                    & Q(endf_related = True) & Q(draft = False))
-            .select_related('author', 'author__administrator')
-        )
-
-        paginator = Paginator(endf_articles, 12)
-
-    # create django pagination
-    page_number = request.GET.get('page', 1)
-
-    page = paginator.get_page(page_number)
+        article_queryset = article_queryset.filter(endf_related=False, personal_account=False)
+    elif category == 'personal':
+        article_queryset = article_queryset.filter(personal_account=True)
+    elif category == 'endf':
+        article_queryset = article_queryset.filter(endf_related=True)
+    page = paginate_request_queryset(request, article_queryset, PUBLIC_ARTICLE_PAGE_SIZE)
 
     context = {
-        'page': page,
-        'category_meta': category_meta,
-        'category_slug': category,
+        'page': page
     }
 
     return render(request, 'articles_category.html', context)
 
 def Search_article(request):
+    search_query = (request.GET.get('q') or request.POST.get('search_query') or '').strip()
+    searched_articles = Analysis_articles.objects.filter(
+        approval=True,
+        draft=False,
+        title__icontains=search_query,
+    ).select_related('author', 'author__administrator').only(
+        'id', 'title', 'thumbnail', 'date_created', 'author__first_name', 'author__last_name',
+        'author__administrator__admin_photo'
+    ) if search_query else Analysis_articles.objects.none()
 
-    context = {}
-
-    if request.method == 'POST':
-        searched_articles = (
-            Analysis_articles.objects
-            .filter(Q(title__icontains = request.POST.get('search_query'))
-                    & (Q(draft = False)))
-            .select_related('author', 'author__administrator')
-        )
-        
-        context = {
-            'search_result': searched_articles,
-            'search_query': request.POST.get('search_query')
-        }
+    context = {
+        'search_result': searched_articles,
+        'search_query': search_query,
+    }
 
     return render(request, 'search_articles.html', context)
 
 def Webinar_discussion_page(request):
-
-    toatl_discussion = Webinar.objects.all()
-
-    paginator = Paginator(toatl_discussion, 12)
-
-    page_number = request.GET.get('page', 1)
-
-    page = paginator.get_page(page_number)
+    toatl_discussion = Webinar.objects.select_related('author').only(
+        'id', 'webinar_title', 'webinar_video_url', 'date_created', 'author__first_name', 'author__last_name'
+    )
+    page = paginate_request_queryset(request, toatl_discussion, PUBLIC_ARTICLE_PAGE_SIZE)
 
     context = {
         'page': page
@@ -729,10 +735,14 @@ def Webinar_discussion_page(request):
     return render(request, 'webinar_discussion.html', context)
 
 
-@cache_page(1800)  # Cache for 30 minutes
 def View_webinar_discussion(request, id):
-
-    webinar_discussion_item =Webinar.objects.get(id=id)
+    webinar_discussion_item = get_object_or_404(
+        Webinar.objects.select_related('author').only(
+            'id', 'webinar_title', 'webinar_content', 'webinar_video_url', 'date_created',
+            'author__first_name', 'author__last_name'
+        ),
+        id=id,
+    )
 
     context = {
         'item': webinar_discussion_item,
@@ -741,72 +751,38 @@ def View_webinar_discussion(request, id):
     return render(request, 'view_panel_discussion.html', context)
 
 def Archive_photo(request):
-    selected_woreda = request.GET.get('woreda', '').strip()
-    is_partial = (
-        request.headers.get('HX-Request') == 'true'
-        and request.headers.get('HX-Boosted') != 'true'
-    )
-    
-    # Generate cache key based on selected woreda
-    cache_key = f'archive_photo:{selected_woreda or "all"}:page:{request.GET.get("page", 1)}'
-    
-    # Try to get from cache
-    if is_partial:
-        cached_response = cache.get(cache_key)
-        if cached_response:
-            return render(request, 'public_partials/photo_archive_batch.html', cached_response)
-    
-    photo_archives = (
-        Photo_archive.objects
-        .select_related('woreda')
-        .only(
-            'id', 'location', 'woreda', 'date_of_event', 'description',
-            'photo', 'graphic', 'date_created',
-        )
-    )
-    if selected_woreda:
-        photo_archives = photo_archives.filter(woreda_id=selected_woreda)
-
-    paginator = Paginator(photo_archives, 6)
-    page = paginator.get_page(request.GET.get('page'))
-    pagination_params = request.GET.copy()
-    pagination_params.pop('page', None)
+    woreda = request.GET.get('woreda', '').strip()
+    photo_archives = get_photo_archive_queryset()
+    if woreda:
+        photo_archives = photo_archives.filter(woreda_id=woreda)
+    page = paginate_request_queryset(request, photo_archives, PUBLIC_ARCHIVE_PAGE_SIZE)
 
     context = {
         'page': page,
-        'filtered_count': paginator.count,
-        'selected_woreda': selected_woreda,
-        'pagination_query': pagination_params.urlencode(),
+        'filtered_count': photo_archives.count(),
+        'woreda_list': get_public_woredas(),
+        'woreda': woreda,
+        'next_querystring': build_querystring(request, page=page.next_page_number()) if page.has_next() else '',
     }
 
-    # Cache partial response for 30 minutes
-    if is_partial:
-        cache.set(cache_key, context, 1800)
-        return render(request, 'public_partials/photo_archive_batch.html', context)
-
-    context['woreda_list'] = Tigray_woreda.objects.only('woreda_name')
-
-    return render(request, 'archive_by_photo.html', context)
+    return render_public_response(
+        request,
+        'archive_by_photo.html',
+        context,
+        partial_template='public_partials/photo_archive_results.html',
+    )
     
 # a method view to search a specfic photo archive by woreda
 def Search_archive_photo(request):
-    selected_woreda = request.GET.get('woreda')
-    target = reverse('archive-photo')
-    if selected_woreda:
-        target = f'{target}?{urllib.parse.urlencode({"woreda": selected_woreda})}'
-    return redirect(target)
+    querystring = urllib.parse.urlencode({'woreda': request.GET.get('woreda', '').strip()})
+    return redirect(f"{reverse('archive-photo')}?{querystring}" if querystring else reverse('archive-photo'))
 
 
-@cache_page(1800)  # Cache for 30 minutes
 def Archive_video(request):
-
-    video_archives = Video_archive.objects.all()
-
-    paginator = Paginator(video_archives, 30)
-
-    page_number = request.GET.get('page', 1)
-
-    page = paginator.get_page(page_number)
+    video_archives = Video_archive.objects.select_related('woreda').only(
+        'id', 'location', 'woreda__woreda_name', 'date_of_event', 'description', 'online_link', 'date_created'
+    )
+    page = paginate_request_queryset(request, video_archives, PUBLIC_ARCHIVE_PAGE_SIZE)
 
     context = {
         'page': page
@@ -814,13 +790,12 @@ def Archive_video(request):
 
     return render(request, 'archive_by_video.html', context)
 
-@cache_page(1800)  # Cache for 30 minutes
 def Watch_video(request, id):
-
-    get_obj = Video_archive.objects.get(id = id)
-
-    random_video_archives = Video_archive.objects.exclude(
-        id=id).order_by('?')[:10]
+    video_queryset = Video_archive.objects.select_related('woreda').only(
+        'id', 'location', 'woreda__woreda_name', 'date_of_event', 'description', 'online_link', 'date_created'
+    )
+    get_obj = get_object_or_404(video_queryset, id=id)
+    random_video_archives = get_random_queryset(video_queryset, exclude_id=id, sample_size=10)
 
     context = {
         'current_video': get_obj,
@@ -831,87 +806,42 @@ def Watch_video(request, id):
 
 
 def Send_us_information(request):
-    if request.method == 'POST':
-        gender = request.POST.get('gender')
-        photo = request.FILES.get('photo')
-        woreda = Tigray_woreda.objects.only('woreda_name', 'zone').get(
-            pk=request.POST.get('woreda')
-        )
-        full_name = ' '.join(filter(None, (
-            request.POST.get('first_name', '').strip(),
-            request.POST.get('middle_name', '').strip(),
-            request.POST.get('last_name', '').strip(),
-        )))
 
-        Civilian_victims.objects.create(
-            sender_fullname=request.POST.get('sender_fullname'),
-            sender_location=request.POST.get('sender_address'),
-            sender_email=request.POST.get('sender_email'),
-            sender_phone=request.POST.get('sender_phone'),
-            full_name=full_name,
-            gender=gender,
-            age=request.POST.get('age') or None,
-            picture=(
-                photo
-                or ('civilian_victims_pic/default.png' if gender == 'Male'
-                    else 'civilian_victims_pic/default_female.jpg')
-            ),
-            perpetrator=request.POST.get('perpetrator'),
-            woreda=woreda,
-            zone=woreda.zone,
-            place_of_killing=request.POST.get('place'),
-            date_of_event=request.POST.get('date_of_event') or None,
-            remark=request.POST.get('remark'),
-        )
+    context = {
+        'woreda_list': Tigray_woreda.objects.all(),
+    }
+
+    if request.method == 'POST':
+        civilian_model = Civilian_victims()
+        civilian_model.sender_fullname = request.POST.get('sender_fullname')
+        civilian_model.sender_location = request.POST.get('sender_address')
+        civilian_model.sender_email = request.POST.get('sender_email')
+        civilian_model.sender_phone = request.POST.get('sender_phone')
+        civilian_model.full_name = request.POST.get(
+            'first_name') + ' ' + request.POST.get('middle_name') + ' ' + request.POST.get('last_name')
+        civilian_model.gender = request.POST.get('gender')
+        civilian_model.age = request.POST.get('age') or None
+        if request.FILES.get('photo'):
+            civilian_model.picture = request.FILES.get('photo')
+        else:
+            if request.POST.get('gender') == 'Male':
+                civilian_model.picture = "civilian_victims_pic/default.png"
+            else:
+                civilian_model.picture = "civilian_victims_pic/default_female.jpg"
+        civilian_model.perpetrator = request.POST.get('perpetrator')
+        woreda_obj = Tigray_woreda.objects.get(woreda_name = request.POST.get('woreda'))
+        civilian_model.woreda = woreda_obj
+        civilian_model.zone = woreda_obj.zone
+        civilian_model.place_of_killing = request.POST.get('place')
+        civilian_model.date_of_event = request.POST.get('date_of_event') or None
+        civilian_model.remark = request.POST.get('remark')
+
+        civilian_model.save()
 
         return JsonResponse({'success': True})
 
-    woreda_names = cache.get('submission-form-woreda-names')
-    if woreda_names is None:
-        woreda_names = list(
-            Tigray_woreda.objects.order_by('woreda_name').values_list(
-                'woreda_name', flat=True
-            )
-        )
-        cache.set('submission-form-woreda-names', woreda_names, 900)
-
-    context = {
-        'woreda_names': woreda_names,
-        'gender_choices': Civilian_victims.Gender_Choices,
-        'atrocity_choices': Civilian_victims.Perpetrator_Choices,
-    }
-
     return render(request, 'send_us_information.html', context)
-
-
-def _send_archive_email_in_background(email_subject, email_body, email_from, email_to, uploaded_file):
-    original_name = get_valid_filename(uploaded_file.name or 'archive-upload')
-    content_type = uploaded_file.content_type
-    suffix = f'-{original_name}' if original_name else ''
-    fd, temp_path = tempfile.mkstemp(prefix='archive-upload-', suffix=suffix)
-
-    with os.fdopen(fd, 'wb') as temp_file:
-        for chunk in uploaded_file.chunks():
-            temp_file.write(chunk)
-
-    def send_email():
-        try:
-            msg = EmailMessage(email_subject, email_body, email_from, email_to)
-            with open(temp_path, 'rb') as attachment:
-                msg.attach(original_name, attachment.read(), content_type)
-            msg.content_subtype = "html"
-            msg.send()
-        except Exception:
-            logger.exception('Archive submission email failed.')
-        finally:
-            try:
-                os.remove(temp_path)
-            except OSError:
-                logger.exception('Could not remove temporary archive upload: %s', temp_path)
-
-    threading.Thread(target=send_email, daemon=True).start()
-
-
+    
 def Send_archive(request):
     
     context = {
@@ -921,10 +851,6 @@ def Send_archive(request):
     if request.method == 'POST':
         # email message setting
         archive_file = request.FILES['photo']
-        max_upload_size = getattr(settings, 'PUBLIC_ARCHIVE_MAX_UPLOAD_BYTES', 25 * 1024 * 1024)
-        if archive_file.size > max_upload_size:
-            return JsonResponse({'success': False}, status=413)
-
         email_subject = request.POST['sender_email']
         email_body = '''
                 <!DOCTYPE html
@@ -1037,19 +963,16 @@ def Send_archive(request):
         email_from = request.POST['sender_email']
         email_to = [settings.EMAIL_HOST_USER]
 
-        _send_archive_email_in_background(
-            email_subject,
-            email_body,
-            email_from,
-            email_to,
-            archive_file,
-        )
+        msg = EmailMessage(email_subject, email_body, email_from, email_to)
+        msg.attach(archive_file.name, archive_file.read(), archive_file.content_type)
+        msg.content_subtype = "html"  # Set the content type to HTML
+        # Send the email
+        msg.send()
         
         return JsonResponse({'success': True})
     
     return render(request, 'send-archive.html', context)
 
-@cache_page(3600)  # Cache for 60 minutes - static page
 def About_us(request):
 
     return render(request, 'about_us.html')
@@ -1084,7 +1007,7 @@ def Admin_login(request):
 
     if request.user.is_authenticated:
 
-        return redirect('admin-dashboard')
+        return redirect('/Admin-dashboard')
 
     else:
 
@@ -1099,10 +1022,10 @@ def Admin_login(request):
                 if form.is_valid():
                     human = True
                     login(request, user_auth)
-                    return redirect('admin-dashboard')
+                    return redirect('/Admin-dashboard')
             else:
                 messages.error(request, 'Incorrect login credenials')
-                return redirect('admin-login')
+                return redirect('/Adminstrator-login-page')
 
     return render(request, 'admin_templates/account_templates/login.html', {'captcha_form': form})
 
@@ -1110,10 +1033,10 @@ def Admin_logout(request):
 
     logout(request)
 
-    return redirect('admin-login')
+    return redirect('/Adminstrator-login-page')
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def admin_dashboard(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1207,7 +1130,7 @@ def admin_dashboard(request):
 
     perpetrator_list = ['Died from lack of food', 'Killed by Eritrean forces', 'Died from lack of medicine',
 
-                    'Killed by Ethiopian forces', 'Killed by Ethiopian and Eritrean forces', 'Killed by Amhara militiaÂ andÂ Fano']
+                    'Killed by Ethiopian forces', 'Killed by Ethiopian and Eritrean forces', 'Killed by Amhara militia and Fano']
 
     
 
@@ -1332,7 +1255,7 @@ def admin_dashboard(request):
     return render(request, 'admin_templates/index.html', context)
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def admin_civilian_victims_page(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1352,7 +1275,7 @@ def admin_civilian_victims_page(request):
 
     return render(request, 'admin_templates/civilian_victim/civilian_victims.html', context)
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Administrator-login-page', redirect_field_name='authentication_required')
 def add_civilian_victim(request):
     pending_count = Civilian_victims.objects.filter(approval=False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
 
@@ -1424,7 +1347,7 @@ def add_civilian_victim(request):
     # Return the same context if not AJAX request
     return render(request, 'admin_templates/civilian_victim/add_civilian_victim.html', context)
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def civilian_data_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1494,7 +1417,7 @@ class delete_civilian_victim_item(LoginRequiredMixin, SuccessMessageMixin, Delet
 
         return reverse('civilian-data-management')
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Add_unverified_civilian(request):
     pending_count = Civilian_victims.objects.filter(approval=False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
 
@@ -1527,7 +1450,7 @@ def Add_unverified_civilian(request):
 
     return render(request, 'admin_templates/civilian_victim/unverified_add_data.html', context)
     
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Unverified_civilian_data_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1576,7 +1499,7 @@ def delete_unverified_civilian_victim(request, pk):
     return redirect('unverified-civilian-data-management')
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def export_unverified_data(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1600,7 +1523,7 @@ def export_unverified_data(request):
 
     return render(request, 'admin_templates/civilian_victim/unverified_export_data.html', context)
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Write_article(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1650,7 +1573,7 @@ def Write_article(request):
 
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Draft_article(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1694,7 +1617,7 @@ def Draft_article(request):
         return render(request, 'admin_templates/analysis_article/write_article.html', context)
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Analysis_articles_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1714,7 +1637,7 @@ def Analysis_articles_management(request):
 
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Draft_articles_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1805,7 +1728,7 @@ class Delete_Article_Analysis(LoginRequiredMixin, SuccessMessageMixin, DeleteVie
 
         return reverse('analysis-article-management')
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Add_webinar_discussion(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1833,7 +1756,7 @@ def Add_webinar_discussion(request):
     else:
         return render(request, 'admin_templates/analysis_article/add_webinar_discussion.html', context)
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Webinar_discussion_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1892,7 +1815,7 @@ class Delete_Webinar_discussion(LoginRequiredMixin, SuccessMessageMixin, DeleteV
 
         return reverse('webinar-discussion-management')
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Archive_create_photo(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1926,7 +1849,7 @@ def Archive_create_photo(request):
     else:
         return render(request, 'admin_templates/archive_templates/add_photo_archive.html', context)
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Archive_manage_photo(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -1986,7 +1909,7 @@ class Delete_photo_archive(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
 
         return reverse('manage-photo-archive')
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Archive_create_video(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2019,7 +1942,7 @@ def Archive_create_video(request):
         return render(request, 'admin_templates/archive_templates/add_video_archive.html', context)
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Archive_manage_video(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2079,7 +2002,7 @@ class Delete_video_archive(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
 
         return reverse('manage-video-archive')
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Create_admin_account(request):
 
     # get available pending posts
@@ -2188,19 +2111,19 @@ def Create_admin_account(request):
                                 </p>
                                 <ul>
                                     <li>
-                                        <p style="text-weight: normal; font-weight: 100;">ðŸ” Username: <b
+                                        <p style="text-weight: normal; font-weight: 100;">🔐 Username: <b
                                                 style="color: blue">{}</b></p>
                                     </li>
                                     <li>
-                                        <p style="text-weight: normal; font-weight: 100;">ðŸ” Password: <b
+                                        <p style="text-weight: normal; font-weight: 100;">🔐 Password: <b
                                                 style="color: blue">{}</b></p>
                                     </li>
 
                                 </ul>
-                                <p>ðŸ‘‰ You can change your username and password once you log in with this one.</p>
+                                <p>👉 You can change your username and password once you log in with this one.</p>
                                 <br>
                                 <div style="text-align: center">
-                                    <a href="www.tigraygenocide.com/administrator-login-page/">
+                                    <a href="www.tigraygenocide.com/Adminstrator-login-page/">
                                         <button style="font: inherit;
         background-color: #FF7A59;
         border: none;
@@ -2289,7 +2212,7 @@ def Create_admin_account(request):
         return render(request, 'admin_templates/account_templates/create_account.html', context)
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Manage_admin_account(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2323,7 +2246,7 @@ class Update_admin_permissions(LoginRequiredMixin, SuccessMessageMixin, UpdateVi
 
         return reverse('manage-admin-account')
         
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Deactivate_admin_account(request, admin_id):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2345,7 +2268,7 @@ def Deactivate_admin_account(request, admin_id):
     return render(request, 'admin_templates/account_templates/deactivate_admin_account.html', context)
 
         
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Pending_posts_management(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2409,7 +2332,7 @@ class Approve_Article_Analysis(LoginRequiredMixin, SuccessMessageMixin, UpdateVi
         return reverse('pending-posts-management')
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Account_settings(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2434,7 +2357,7 @@ def Account_settings(request):
     return render(request, 'admin_templates/admin_settings/settings.html', context)
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Password_settings(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2465,7 +2388,7 @@ def Password_settings(request):
 
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Profile_picture_settings(request):
 
     pending_count = Civilian_victims.objects.filter(approval = False).count() + Analysis_articles.objects.filter(approval=False, draft=False).count()
@@ -2490,7 +2413,7 @@ def Profile_picture_settings(request):
 
 
 
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def Webmail_password_setting(request):
 
     if request.method == 'POST':
@@ -2523,7 +2446,7 @@ def Webmail_password_setting(request):
     return render(request, 'admin_templates/admin_settings/settings.html', context)
     
 # export database SQL backup
-@login_required(login_url='/administrator-login-page/', redirect_field_name='authentication_required')
+@login_required(login_url='/Adminstrator-login-page', redirect_field_name='authentication_required')
 def export_database(request):
     # Database credentials
     db_name = settings.DATABASES['default']['NAME']

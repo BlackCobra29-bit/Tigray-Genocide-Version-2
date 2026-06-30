@@ -1,53 +1,61 @@
 {% extends 'base.html' %}
-{% load humanize %}
-{% block meta-title %}<meta name="og:title" content="Photo Archive" />{% endblock %}
-{% block extra_head %}
-<link rel="preconnect" href="https://unpkg.com" crossorigin />
-<style>
-  .photo-archive-batch + .photo-archive-batch { margin-top: 0; }
-  .photo-archive-load-button .htmx-indicator { display: none; }
-  .photo-archive-load-button.htmx-request .load-more-label { display: none; }
-  .photo-archive-load-button.htmx-request .htmx-indicator { display: inline-block; }
-  .photo-archive-load-button.htmx-request { min-width: 9rem; pointer-events: none; }
-  #photo-archive-filter-spinner { display: none; }
-  #photo-archive-filter-spinner.htmx-request { display: inline-block; }
-</style>
+
+{% block meta-title %}
+    <meta name="og:title" content="Photo Archive">
 {% endblock %}
+
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Photo Archives' subtitle='Photo evidence and infrastructure damage archive.' eyebrow='Archives' %}
-<main class="container-xl page-section">
-  <div class="glass p-4 mb-4">
-    <form
-      class="row justify-content-center align-items-end g-2"
-      method="get"
-      action="{% url 'archive-photo' %}"
-      hx-get="{% url 'archive-photo' %}"
-      hx-target="#photo-archive-results"
-      hx-swap="innerHTML"
-      hx-push-url="true"
-      hx-indicator="#photo-archive-filter-spinner"
-      hx-trigger="submit, change from:select"
-    >
-      <div class="col-12 col-lg-5">
-        <label class="form-label" for="photoArchiveWoreda">Filter by Woreda</label>
-        <select class="form-select" id="photoArchiveWoreda" name="woreda">
-          <option value="">All woredas</option>
-          {% for woreda in woreda_list %}
-            <option value="{{ woreda.woreda_name }}"{% if selected_woreda == woreda.woreda_name %} selected{% endif %}>{{ woreda.woreda_name }}</option>
-          {% endfor %}
-        </select>
+
+<main id="main">
+
+  <div class="breadcrumbs">
+    <nav>
+      <div class="container">
+        <ol>
+          <li><a href="{% url 'app-index' %}">Home</a></li>
+          <li>Photo Archive</li>
+        </ol>
       </div>
-      <div class="col-auto">
-        <a class="btn btn-outline-dark" href="{% url 'archive-photo' %}">Reset</a>
-      </div>
-      <div class="col-auto align-self-center">
-        <span id="photo-archive-filter-spinner" class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-      </div>
-    </form>
+    </nav>
   </div>
 
-  <div id="photo-archive-results" aria-live="polite">
-    {% include 'public_partials/photo_archive_batch.html' %}
-  </div>
+  <section id="portfolio" class="portfolio sections-bg">
+    <div class="section-header">
+      <h2><span class="bi bi-camera-video-fill"></span> Photo Archives</h2>
+    </div>
+
+    <div class="container" data-aos="fade-up">
+      <div class="portfolio-isotope" data-portfolio-filter="*" data-portfolio-layout="masonry" data-portfolio-sort="original-order" data-aos="fade-up" data-aos-delay="100">
+        <form
+          class="row"
+          method="get"
+          hx-get="{% url 'archive-photo' %}"
+          hx-target="#photo-archive-results"
+          hx-swap="innerHTML"
+          hx-push-url="true"
+          hx-indicator="#page-shell-indicator"
+        >
+          <div class="col-lg-4"></div>
+          <div class="col-lg-4">
+            <div class="form-group">
+              <label for="archive-woreda"><span class="fa fa-search" style="color: blue;"></span> Filter By Woreda</label>
+              <select class="selectpicker form-control" data-live-search="true" name="woreda" id="archive-woreda" onchange="this.form.requestSubmit()">
+                <option value="">Search By Woreda</option>
+                {% for item in woreda_list %}
+                <option value="{{ item.woreda_name }}" {% if woreda == item.woreda_name %}selected{% endif %}>{{ item.woreda_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <br><br>
+          </div>
+        </form>
+
+        <div id="photo-archive-results">
+          {% include 'public_partials/photo_archive_results.html' %}
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
+
 {% endblock %}

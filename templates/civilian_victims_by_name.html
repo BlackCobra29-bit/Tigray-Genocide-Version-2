@@ -1,73 +1,163 @@
 {% extends 'base.html' %}
+
 {% load humanize %}
-{% block meta-title %}<meta name="og:title" content="Verified Civilian Victims by Name" />{% endblock %}
-{% block extra_head %}
-<style>
-  #victim-filter-spinner { display: none; }
-  #victim-filter-spinner.htmx-request { display: inline-block; }
-</style>
+
+{% block meta-title %}
+    <meta name="og:title" content="Verified Civilian Victims by Name">
 {% endblock %}
+
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Verified Civilian Victims by Name' subtitle='A searchable compilation of verified civilian victim records.' eyebrow='Memorial registry' %}
-<main class="container-xl page-section">
-  <div class="glass p-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
-      <div>
-        <div class="small-note">
-          Total records: {{ total_count|intcomma }}
+
+<main id="main">
+
+  <style>
+    td,
+    th {
+      font-size: 14px;
+    }
+
+    table {
+      border-color: gray;
+    }
+
+    .table-bordered {
+      border: 1px solid #dee2e6;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .btn-default {
+      background-color: #f8f9fa;
+      border-color: #ddd;
+      color: #444;
+    }
+
+    #source_link:hover {
+      text-decoration: underline;
+    }
+  </style>
+
+  <div class="breadcrumbs">
+    <nav>
+      <div class="container">
+        <ol>
+          <li><a href="{% url 'app-index' %}">Home</a></li>
+          <li><a>Verified Civilian Victims by Name</a></li>
+        </ol>
+      </div>
+    </nav>
+  </div>
+
+  <section id="recent-posts" class="recent-posts sections-bg">
+    <div class="container" data-aos="fade-up">
+      <div class="section-header">
+        <h2><span class="fas fa-users"></span> Verified Civilian Victims by Name</h2>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <span class="fa fa-check-circle"></span> A compilation of the verified list of civilian victims from
+          different sources.
+
+          <br><br>
+
+          <form
+            class="row"
+            style="padding-left: 40px; padding-right: 40px;"
+            method="get"
+            action="{% url 'civilian_victims_by_name' %}"
+            hx-boost="false"
+            hx-get="{% url 'civilian_victims_by_name' %}"
+            hx-select=".victim-results-fragment"
+            hx-target="#victim-results"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            hx-indicator="#page-shell-indicator"
+          >
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="victim-search"><span class="fa fa-search" style="color: blue;"></span> Filter by Name</label>
+                <input type="text" placeholder="filter by name" id="victim-search" name="q" value="{{ filters.q }}" class="form-control" style="height: 34px">
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="victim-perpetrator"><span class="fa fa-search" style="color: blue;"></span> Filter by Atrocity</label>
+                <select class="form-control" id="victim-perpetrator" name="perpetrator" style="height: 34px" onchange="this.form.requestSubmit()">
+                  <option value="">Search By Atrocity</option>
+                  <option value="Died from lack of food" {% if filters.perpetrator == 'Died from lack of food' %}selected{% endif %}>Died from lack of food</option>
+                  <option value="Died from lack of medicine" {% if filters.perpetrator == 'Died from lack of medicine' %}selected{% endif %}>Died from lack of medicine</option>
+                  <option value="Killed by Ethiopian forces" {% if filters.perpetrator == 'Killed by Ethiopian forces' %}selected{% endif %}>Killed by Ethiopian forces</option>
+                  <option value="Killed by Eritrean forces" {% if filters.perpetrator == 'Killed by Eritrean forces' %}selected{% endif %}>Killed by Eritrean forces</option>
+                  <option value="Killed by Ethiopian and Eritrean forces" {% if filters.perpetrator == 'Killed by Ethiopian and Eritrean forces' %}selected{% endif %}>Killed by Ethiopian and Eritrean forces</option>
+                  <option value="Killed by Amhara militiaÂ andÂ Fano" {% if filters.perpetrator == 'Killed by Amhara militiaÂ andÂ Fano' %}selected{% endif %}>Killed by Amhara militiaÂ andÂ Fano</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="victim-woreda"><span class="fa fa-search" style="color: blue;"></span> Filter By Woreda</label>
+                <select class="selectpicker form-control" data-live-search="true" name="woreda" id="victim-woreda" style="width: 75%" onchange="this.form.requestSubmit()">
+                  <option value="">Search By Woreda</option>
+                  {% for woreda in woreda_list %}
+                  <option value="{{ woreda.woreda_name }}" {% if filters.woreda == woreda.woreda_name %}selected{% endif %}>{{ woreda.woreda_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="victim-gender"><span class="fa fa-search" style="color: blue;"></span> Filter By Gender</label>
+                <select class="form-control" name="gender" style="height: 34px" id="victim-gender" onchange="this.form.requestSubmit()">
+                  <option value="">Search By Gender</option>
+                  <option value="Male" {% if filters.gender == 'Male' %}selected{% endif %}>Male</option>
+                  <option value="Female" {% if filters.gender == 'Female' %}selected{% endif %}>Female</option>
+                  <option value="Unknown" {% if filters.gender == 'Unknown' %}selected{% endif %}>Unknown</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="victim-sort"><span class="fa fa-sort" style="color: blue;"></span> Sort By</label>
+                <select class="form-control" name="sort" id="victim-sort" style="height: 34px" onchange="this.form.requestSubmit()">
+                  <option value="newest" {% if filters.sort == 'newest' %}selected{% endif %}>Newest</option>
+                  <option value="oldest" {% if filters.sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                  <option value="name" {% if filters.sort == 'name' %}selected{% endif %}>Name</option>
+                  <option value="event_date" {% if filters.sort == 'event_date' %}selected{% endif %}>Event Date</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-2">
+              <div class="form-group">
+                <br>
+                <button class="btn btn-primary" type="submit"><span class="fa fa-filter"></span> Apply</button>
+              </div>
+            </div>
+
+            <div class="col-lg-2">
+              <div class="form-group">
+                <br>
+                <a class="btn btn-danger" href="{% url 'civilian_victims_by_name' %}"><span class="fas fa-1x fa-sync-alt"></span> Reset Filters</a>
+              </div>
+            </div>
+          </form>
+
+          <br>
+
+          <div id="victim-results" hx-boost="false" hx-select=".victim-results-fragment">
+            {% include 'public_partials/civilian_victim_results.html' %}
+          </div>
         </div>
       </div>
     </div>
-
-    <form
-      method="get"
-      action="{% url 'civilian_victims_by_name' %}"
-      class="row g-2 mb-3"
-      id="victim-filters"
-      aria-label="Filter civilian victims"
-      hx-get="{% url 'civilian_victims_by_name' %}"
-      hx-target="#victim-results"
-      hx-swap="innerHTML"
-      hx-push-url="true"
-      hx-indicator="#victim-filter-spinner"
-      hx-trigger="submit, change from:select, input changed delay:350ms from:input[name='name']"
-    >
-      <div class="col-12 col-lg-3">
-        <input class="form-control" name="name" value="{{ filters.name }}" type="search" placeholder="Filter by name" aria-label="Filter by name" />
-      </div>
-      <div class="col-12 col-lg-3">
-        <select class="form-select" name="atrocity" aria-label="Filter by atrocity">
-          <option value="">All atrocities</option>
-          {% for value, label in atrocity_choices %}
-            <option value="{{ value }}"{% if filters.atrocity == value %} selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-lg-2">
-        <select class="form-select" name="woreda" aria-label="Filter by woreda">
-          <option value="">All woredas</option>
-          {% for woreda in woreda_list %}
-            <option value="{{ woreda.woreda_name }}"{% if filters.woreda == woreda.woreda_name %} selected{% endif %}>{{ woreda.woreda_name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-lg-2">
-        <select class="form-select" name="gender" aria-label="Filter by gender">
-          <option value="">All genders</option>
-          {% for value, label in gender_choices %}
-            <option value="{{ value }}"{% if filters.gender == value %} selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-lg-2 d-flex gap-2">
-        <a class="btn btn-outline-dark flex-grow-1" href="{% url 'civilian_victims_by_name' %}" aria-label="Reset filters">Reset</a>
-        <span id="victim-filter-spinner" class="spinner-border spinner-border-sm htmx-indicator align-self-center" aria-hidden="true"></span>
-      </div>
-    </form>
-
-    <div id="victim-results" aria-live="polite">
-      {% include 'public_partials/civilian_victim_results.html' %}
-    </div>
-  </div>
+  </section>
 </main>
+
 {% endblock %}

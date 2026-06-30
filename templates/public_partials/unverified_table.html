@@ -1,23 +1,34 @@
-{% load humanize %}
-<div class="table-responsive archive-table-wrap">
-  <table class="table archive-table filter-table" id="datatable2">
-    <thead>
-      <tr><th>#</th><th>Location</th><th>Number</th><th>Atrocity</th><th>Woreda</th><th>Source</th><th>Remark</th></tr>
-    </thead>
-    <tbody>
-      {% for victim in victims %}
-      <tr data-atrocity="{{ victim.perpetrator|lower }}" data-woreda="{{ victim.woreda|lower }}">
-        <td>{% if row_offset != None %}{{ row_offset|add:forloop.counter }}{% else %}{{ forloop.counter }}{% endif %}</td>
-        <td>{{ victim.location }}</td>
-        <td>{{ victim.number_of_civilian|intcomma }}</td>
-        <td>{{ victim.perpetrator }}</td>
-        <td>{{ victim.woreda }}</td>
-        <td>{% include 'public_partials/source_links.html' with obj=victim only %}</td>
-        <td>{% if victim.remark %}{{ victim.remark|urlize }}{% else %}<span class="text-muted">Unknown</span>{% endif %}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="7" class="text-center py-4">No unidentified civilian victim records were found.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="card">
+  <div class="card-body">
+    <table id="example1" class="table table-bordered table-striped unverified js-server-datatable">
+      <thead>
+        <tr>
+          <td>Index</td>
+          <th>Location</th>
+          <th>Number of Civilian Victims</th>
+          <th>Atrocity</th>
+          <th style="white-space: nowrap;">Woreda</th>
+          <th>Source</th>
+          <th>Remark:</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for victim in civilian_victims %}
+        <tr>
+          <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
+          <td>{{ victim.location }}</td>
+          <td>{{ victim.number_of_civilian }}</td>
+          <td>{{ victim.perpetrator }}</td>
+          <td>{{ victim.woreda }}</td>
+          <td>{% include 'public_partials/source_links.html' with source=victim.source source_link=victim.source_link %}</td>
+          <td style="white-space: nowrap;">{% if victim.remark %}{{ victim.remark }}{% else %}<i>Unknown</i>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center"><span class="fa fa-search"></span> No matching unidentified victims found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>

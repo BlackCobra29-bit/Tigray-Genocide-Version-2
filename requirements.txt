@@ -1,18 +1,38 @@
-pillow
-django
-FROALA_Editor
-folium
-captcha_form
-django-simple-captcha
-PLotly
-
-# search more
-
-
-
-# to be change
-# SYstem email
-# System email login address link
-# django-simple-captcha public and private key
-
-
+asgiref==3.11.1
+bleach==6.4.0
+branca==0.8.2
+certifi==2026.5.20
+charset-normalizer==3.4.7
+colorama==0.4.6
+diff-match-patch==20241021
+Django==5.0.1
+django-ckeditor==6.7.3
+django-froala-editor==5.2.0
+django-import-export==4.4.1
+django-js-asset==3.1.2
+django-ranged-response==0.2.0
+django-simple-captcha==0.6.3
+django-summernote==0.8.20.0
+django-tinymce==5.0.0
+filelock==3.29.1
+folium==0.20.0
+idna==3.18
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+mysqlclient==2.2.8
+narwhals==2.22.1
+numpy==2.4.6
+packaging==26.2
+pillow==12.2.0
+platformdirs==4.10.0
+plotly==6.8.0
+requests==2.34.2
+sqlparse==0.5.5
+tablib==3.9.0
+tzdata==2026.2
+uritools==6.1.2
+urlextract==1.9.0
+urllib3==2.7.0
+webencodings==0.5.1
+whitenoise==6.12.0
+xyzservices==2026.3.0

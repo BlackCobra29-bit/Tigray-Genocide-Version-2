@@ -1,25 +1,59 @@
 {% load humanize %}
-<div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-2">
-  <div class="small-note">
-    Showing {{ page.start_index|intcomma }}&ndash;{{ page.end_index|intcomma }} of {{ filtered_count|intcomma }} record{{ filtered_count|pluralize }}
-  </div>
-  <div class="small-note">10 records per page</div>
-</div>
 
-{% include 'public_partials/unverified_table.html' with victims=page.object_list row_offset=page_offset only %}
+<div class="unverified-results-fragment" hx-boost="false">
+<span class="fa fa-check-circle"></span> A compilation of the unidentified list of civilian victims from
+different sources : Total number of victims = {{ total_civilians|intcomma }}
 
-{% if page.paginator.num_pages > 1 %}
-  <nav class="pagination-wrap mt-3" aria-label="Unidentified civilian victim pages">
-    <div class="btn-group flex-wrap" role="group">
-      {% if page.has_previous %}
-        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page=1" hx-target="#unverified-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page=1">First</a>
-        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.previous_page_number }}" hx-target="#unverified-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>
-      {% endif %}
-      <span class="btn btn-outline-dark btn-sm disabled" aria-current="page">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-      {% if page.has_next %}
-        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}" hx-target="#unverified-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>
-        <a class="btn btn-outline-dark btn-sm" hx-get="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.paginator.num_pages }}" hx-target="#unverified-results" hx-swap="innerHTML" hx-push-url="true" href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page.paginator.num_pages }}">Last</a>
-      {% endif %}
+<br><br>
+
+{% include 'public_partials/unverified_table.html' %}
+
+<div class="row mt-3 align-items-center dataTables_wrapper dt-bootstrap4">
+  <div class="col-sm-12 col-md-5">
+    <div class="dataTables_info">
+      Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ filtered_count }} entries
     </div>
-  </nav>
-{% endif %}
+  </div>
+  <div class="col-sm-12 col-md-7">
+    <div class="dataTables_paginate paging_simple_numbers">
+      <span class="pagination justify-content-center justify-content-md-end">
+      {% if page_obj.has_previous %}
+      <a href="?page=1{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-boost="false"
+         hx-get="{% url 'unverified-civilian-victim' %}?page=1{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-select=".unverified-results-fragment"
+         hx-target="#unverified-results"
+         hx-swap="innerHTML"
+         hx-push-url="true"><span class="paginate_button page-item"><button class="btn btn-block btn-outline-dark btn-sm">&laquo; first</button></span></a>
+      <a href="?page={{ page_obj.previous_page_number }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-boost="false"
+         hx-get="{% url 'unverified-civilian-victim' %}?page={{ page_obj.previous_page_number }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-select=".unverified-results-fragment"
+         hx-target="#unverified-results"
+         hx-swap="innerHTML"
+         hx-push-url="true"><span class="paginate_button page-item"><button class="btn btn-block btn-outline-dark btn-sm">previous</button></span></a>
+      {% endif %}
+
+      <span class="paginate_button current disabled" style="padding: .5rem .75rem;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-boost="false"
+         hx-get="{% url 'unverified-civilian-victim' %}?page={{ page_obj.next_page_number }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-select=".unverified-results-fragment"
+         hx-target="#unverified-results"
+         hx-swap="innerHTML"
+         hx-push-url="true"><span class="paginate_button page-item"><button class="btn btn-block btn-outline-dark btn-sm">next</button></span></a>
+      <a href="?page={{ page_obj.paginator.num_pages }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-boost="false"
+         hx-get="{% url 'unverified-civilian-victim' %}?page={{ page_obj.paginator.num_pages }}{% if filters.q %}&q={{ filters.q|urlencode }}{% endif %}{% if filters.perpetrator %}&perpetrator={{ filters.perpetrator|urlencode }}{% endif %}{% if filters.woreda %}&woreda={{ filters.woreda|urlencode }}{% endif %}"
+         hx-select=".unverified-results-fragment"
+         hx-target="#unverified-results"
+         hx-swap="innerHTML"
+         hx-push-url="true"><span class="paginate_button page-item"><button class="btn btn-block btn-outline-dark btn-sm">last &raquo;</button></span></a>
+      {% endif %}
+      </span>
+    </div>
+  </div>
+</div>
+</div>

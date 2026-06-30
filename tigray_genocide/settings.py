@@ -62,8 +62,10 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+    'django.middleware.clickjacking.XFrameOptionsMiddleware'
+    ]
+
+
 
 ROOT_URLCONF = 'tigray_genocide.urls'
 
@@ -78,7 +80,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'App.context_processors.seo_defaults',
             ],
         },
     },
@@ -93,19 +94,8 @@ DATABASES = {
         'NAME': 'tigray_genocide',
         'USER': 'root',
         'PASSWORD': '',
-        'HOST': '127.0.0.1',
+        'HOST': 'localhost',
         'PORT': '3306',
-    }
-}
-
-# Cache configuration for performance optimization
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'tigray-genocide-cache',
-        'OPTIONS': {
-            'MAX_ENTRIES': 5000,
-        }
     }
 }
 
@@ -130,8 +120,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # settings.py
 
-LOGIN_URL = '/administrator-login-page/'
-LOGIN_REDIRECT_URL = '/admin-dashboard/'
+LOGIN_URL = '/Adminstrator-login-page/'
+LOGIN_REDIRECT_URL = '/Admin-dashboard/'
 
 try:
     first_object = Webmail_password_manager.objects.first()
@@ -157,15 +147,11 @@ FRAOLA_EDITOR_THIRD_PARTY = ('image_aviary', 'spell_checker')
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
-PUBLIC_ARCHIVE_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 LANGUAGE_CODE = 'en-us'
 

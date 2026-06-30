@@ -1,5 +1,71 @@
 {% extends 'base.html' %}
+
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Panel Discussions' subtitle='Recorded panel discussions and webinar records.' eyebrow='Analysis' parent_label='Analysis' parent_url='app-articles-page' %}
-<main class="container-xl page-section"><div class="row g-4">{% for item in page %}<div class="col-12 col-md-6 col-xl-4"><article class="content-card h-100 p-4"><div class="small-note mb-2"><span class="mi">calendar_today</span>{{ item.date_created|date:"d-M-Y" }}</div><h2 class="content-card-title"><a href="{% url 'view-webinar-discussion' item.id %}">{{ item.webinar_title }}</a></h2><a class="readmore-link" href="{% url 'view-webinar-discussion' item.id %}">Read more <span class="mi">arrow_forward</span></a></article></div>{% empty %}<div class="col-12"><div class="context-box">No panel discussions were found.</div></div>{% endfor %}</div>{% include 'public_partials/pagination.html' with page=page only %}</main>
+
+{% load static %}
+
+<main id="main">
+
+  <!-- ======= Breadcrumbs ======= -->
+  <div class="breadcrumbs">
+    <nav>
+      <div class="container">
+        <ol>
+          <li><a href="{% url 'app-index' %}">Home</a></li>
+          <li>Panel Discussions</li>
+        </ol>
+      </div>
+    </nav>
+  </div><!-- End Breadcrumbs -->
+
+  <!-- ======= Our Services Section ======= -->
+  <section id="services" class="services sections-bg">
+      
+      <div class="section-header">
+            <h2><span class="bi bi-bar-chart"></span> Panel Discussions</h2>
+        </div>
+        
+    <div class="container" data-aos="fade-up">
+
+      <div class="row gy-4" data-aos="fade-up" data-aos-delay="100">
+
+        {% for item in page %}
+        <div class="col-lg-4 col-md-6">
+          <div class="service-item  position-relative">
+            <p>{{ item.webinar_title }}</p>
+            <a href="/View-panel-discussion/{{ item.id }}" class="readmore stretched-link">Read more <i class="bi bi-arrow-right"></i></a>
+          </div>
+        </div>
+        {% endfor %}
+
+         <!--Pagination-->
+      <div class="container p-4">
+        <div class="pagination justify-content-center">
+            <span class="step-links">
+              {% if page.has_previous %}
+                  <a href="?page=1"><button class="btn btn-block btn-outline-dark btn-sm">&laquo; first</button></a>
+                  <a href="?page={{ page.previous_page_number }}"><button class="btn btn-block btn-outline-dark btn-sm">previous</button></a>
+              {% endif %}
+
+                <span class="current">
+                    Page {{ page.number }} of {{ page.paginator.num_pages }}
+                </span>
+
+              {% if page.has_next %}
+                  <a href="?page={{ page.next_page_number }}"><button class="btn btn-block btn-outline-dark btn-sm">next</button></a>
+                  <a href="?page={{ page.paginator.num_pages }}"><button class="btn btn-block btn-outline-dark btn-sm">last &raquo;</button></a>
+              {% endif %}
+            </span>
+            </div>
+        </div>
+      <!--end of Pagination-->
+      
+
+      </div>
+
+    </div>
+  </section><!-- End Our Services Section -->
+
+</main>
+
 {% endblock %}

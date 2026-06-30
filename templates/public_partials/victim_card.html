@@ -1,7 +1,0 @@
-<div class="col-6 col-md-4 col-lg-2 memorial-item" data-zone="{{ victim.zone|lower }}" data-search="{{ victim.full_name|lower }} {{ victim.gender|lower }} {{ victim.zone|lower }} {{ victim.woreda|lower }} {{ victim.perpetrator|lower }} {{ victim.place_of_killing|lower }}">
-  <a class="memorial-card d-block" href="{% url 'view-victim-info' victim.id %}">
-    <div class="memorial-frame"><img class="memorial-photo" src="{{ victim.picture.url }}" alt="{{ victim.full_name }}" loading="lazy" decoding="async" /></div>
-    <div class="memorial-name">{{ victim.full_name|title }}</div>
-    <div class="memorial-meta">{{ victim.zone }}</div>
-  </a>
-</div>

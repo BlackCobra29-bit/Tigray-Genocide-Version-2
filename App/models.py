@@ -59,6 +59,12 @@ class Civilian_victims(models.Model):
         ordering = ["-date_created"]
         verbose_name = "Verified Civilian Victim"
         verbose_name_plural = "Verified Civilian Victims"
+        indexes = [
+            models.Index(fields=["approval", "date_created"]),
+            models.Index(fields=["approval", "woreda"]),
+            models.Index(fields=["approval", "perpetrator"]),
+            models.Index(fields=["approval", "gender"]),
+        ]
 
     def __str__(self):
         return f'{self.full_name}'
@@ -119,6 +125,11 @@ class Analysis_articles(models.Model):
     class Meta:
         ordering = ["-date_created"]
         verbose_name_plural = "Analysis articles"
+        indexes = [
+            models.Index(fields=["approval", "draft", "date_created"]),
+            models.Index(fields=["approval", "draft", "endf_related"]),
+            models.Index(fields=["approval", "draft", "personal_account"]),
+        ]
 
     def __str__(self):
         return f'{self.title}'
@@ -167,6 +178,9 @@ class Photo_archive(models.Model):
     class Meta:
         ordering = ["-date_created"]
         verbose_name_plural = 'Photo archives'
+        indexes = [
+            models.Index(fields=["woreda", "date_created"]),
+        ]
 
     def __str__(self):
         return f'{self.description}'
@@ -184,6 +198,9 @@ class Video_archive(models.Model):
     class Meta:
         ordering = ["-date_created"]
         verbose_name_plural = 'Video archives'
+        indexes = [
+            models.Index(fields=["woreda", "date_created"]),
+        ]
 
     def __str__(self):
         return f'{self.description}'
@@ -240,6 +257,10 @@ class Unverified_civilian(models.Model):
     class Meta:
         ordering = ["-date_created"]
         verbose_name_plural = 'Unverified Civilian victims'
+        indexes = [
+            models.Index(fields=["woreda", "date_created"]),
+            models.Index(fields=["perpetrator", "date_created"]),
+        ]
 
     def __str__(self):
         return f'{self.location}'

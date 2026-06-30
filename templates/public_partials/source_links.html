@@ -1,22 +1,28 @@
 {% load custom %}
-{% if obj.source %}
-  {% if not obj.source_link %}
-    {{ obj.source }}
-  {% elif obj.source_link|urlize == obj.source_link %}
-    {{ obj.source }}
+
+{% if source %}
+  {% if not source_link %}
+    {{ source }}
+  {% elif source_link|urlize == source_link %}
+    {{ source }}
   {% else %}
-    {% if ',' in obj.source and ',' in obj.source_link %}
-      {% with source_list=obj.source|split_string:', ' %}
-        {% with link_list=obj.source_link|split_string:', ' %}
+    {% if ',' in source and ',' in source_link %}
+      {% with source_list=source|split_string:', ' %}
+        {% with link_list=source_link|split_string:', ' %}
           {% for source_item, link_item in source_list|zip_lists:link_list %}
-            {% if link_item|urlize == link_item %}{{ source_item }}{% else %}<a class="text-link" href="{{ link_item }}" target="_blank" rel="noopener">{{ source_item }}</a>{% endif %}{% if not forloop.last %}, {% endif %}
+            {% if link_item|urlize == link_item %}
+              {{ source_item }}
+            {% else %}
+              <a href="{{ link_item }}" id="source_link" target="_blank"><i class="fa fa-link"></i> {{ source_item }}</a>
+            {% endif %}
+            {% if not forloop.last %}, {% endif %}
           {% endfor %}
         {% endwith %}
       {% endwith %}
     {% else %}
-      <a class="text-link" href="{{ obj.source_link|extract_and_join_urls }}" target="_blank" rel="noopener">{{ obj.source }}</a>
+      <a href="{{ source_link|extract_and_join_urls }}" id="source_link" target="_blank"><i class="fa fa-link"></i> {{ source }}</a>
     {% endif %}
   {% endif %}
 {% else %}
-  <span class="text-muted">Unknown</span>
+  <i>Unknown</i>
 {% endif %}

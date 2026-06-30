@@ -1,58 +1,130 @@
 {% extends 'base.html' %}
+
 {% load humanize %}
+
 {% block page-content %}
-{% include 'public_partials/page_header.html' with title='Unidentified Civilian Victims' subtitle='Unidentified civilian victim records pending verification.' eyebrow='Pending verification' parent_label='Civilian Victims' parent_url='civilian_victims_by_name' %}
-<main class="container-xl page-section">
-  <div class="glass p-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
-      <div>
-        <h2 class="section-title h4 mb-1">Unidentified Civilian Victims</h2>
-        <div class="small-note">Total civilians represented: {{ total_civilians|intcomma }}</div>
-      </div>
-    </div>
 
-    <form
-      class="row g-2 mb-3"
-      method="get"
-      action="{% url 'unverified-civilian-victim' %}"
-      hx-get="{% url 'unverified-civilian-victim' %}"
-      hx-target="#unverified-results"
-      hx-swap="innerHTML"
-      hx-push-url="true"
-      hx-indicator="#unverified-filter-spinner"
-      hx-trigger="submit, change from:select"
-    >
-      <div class="col-12 col-md-5">
-        <select class="form-select" name="atrocity" aria-label="Filter by atrocity">
-          <option value="">All atrocities</option>
-          {% for value, label in atrocity_choices %}
-            <option value="{{ value }}"{% if filters.atrocity == value %} selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-md-5">
-        <select class="form-select" name="woreda" aria-label="Filter by woreda">
-          <option value="">All woredas</option>
-          {% for woreda in woreda_list %}
-            <option value="{{ woreda.woreda_name }}"{% if filters.woreda == woreda.woreda_name %} selected{% endif %}>{{ woreda.woreda_name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-12 col-md-2 d-flex gap-2">
-        <a class="btn btn-outline-dark flex-grow-1" href="{% url 'unverified-civilian-victim' %}">Reset</a>
-        <span id="unverified-filter-spinner" class="spinner-border spinner-border-sm align-self-center" aria-hidden="true"></span>
-      </div>
-    </form>
+<main id="main">
 
-    <div id="unverified-results" aria-live="polite">
-      {% include 'public_partials/unverified_results.html' %}
-    </div>
+  <style>
+    td,
+    th {
+      font-size: 14px;
+    }
+
+    table {
+      border-color: gray;
+    }
+
+    .table-bordered {
+      border: 1px solid #dee2e6;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .btn-default {
+      background-color: #f8f9fa;
+      border-color: #ddd;
+      color: #444;
+    }
+
+    #source_link:hover {
+      text-decoration: underline;
+    }
+  </style>
+
+  <div class="breadcrumbs">
+    <nav>
+      <div class="container">
+        <ol>
+          <li><a href="{% url 'app-index' %}">Home</a></li>
+          <li><a>Unidentified Civilian Victims</a></li>
+        </ol>
+      </div>
+    </nav>
   </div>
+
+  <section id="recent-posts" class="recent-posts sections-bg">
+    <div class="container" data-aos="fade-up">
+      <div class="section-header">
+        <h2><span class="fas fa-users"></span> Unidentified Civilian Victims</h2>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <form
+            class="row"
+            style="padding-left: 40px; padding-right: 40px;"
+            method="get"
+            action="{% url 'unverified-civilian-victim' %}"
+            hx-boost="false"
+            hx-get="{% url 'unverified-civilian-victim' %}"
+            hx-select=".unverified-results-fragment"
+            hx-target="#unverified-results"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            hx-indicator="#page-shell-indicator"
+          >
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="unverified-search"><span class="fa fa-search" style="color: blue;"></span> Filter by Location</label>
+                <input type="text" name="q" id="unverified-search" value="{{ filters.q }}" class="form-control" style="height: 34px" placeholder="filter by location">
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="unverified-perpetrator"><span class="fa fa-search" style="color: blue;"></span> Filter by Atrocity</label>
+                <select class="form-control" id="unverified-perpetrator" name="perpetrator" style="height: 34px" onchange="this.form.requestSubmit()">
+                  <option value="">Search By Atrocity</option>
+                  <option value="Died from lack of food" {% if filters.perpetrator == 'Died from lack of food' %}selected{% endif %}>Died from lack of food</option>
+                  <option value="Died from lack of medicine" {% if filters.perpetrator == 'Died from lack of medicine' %}selected{% endif %}>Died from lack of medicine</option>
+                  <option value="Killed by Ethiopian forces" {% if filters.perpetrator == 'Killed by Ethiopian forces' %}selected{% endif %}>Killed by Ethiopian forces</option>
+                  <option value="Killed by Eritrean forces" {% if filters.perpetrator == 'Killed by Eritrean forces' %}selected{% endif %}>Killed by Eritrean forces</option>
+                  <option value="Killed by Ethiopian and Eritrean forces" {% if filters.perpetrator == 'Killed by Ethiopian and Eritrean forces' %}selected{% endif %}>Killed by Ethiopian and Eritrean forces</option>
+                  <option value="Killed by Amhara militiaÂ andÂ Fano" {% if filters.perpetrator == 'Killed by Amhara militiaÂ andÂ Fano' %}selected{% endif %}>Killed by Amhara militiaÂ andÂ Fano</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-3">
+              <div class="form-group">
+                <label for="unverified-woreda"><span class="fa fa-search" style="color: blue;"></span> Filter By Woreda</label>
+                <select class="selectpicker form-control" data-live-search="true" name="woreda" id="unverified-woreda" style="width: 75%" onchange="this.form.requestSubmit()">
+                  <option value="">Search By Woreda</option>
+                  {% for woreda in woreda_list %}
+                  <option value="{{ woreda.woreda_name }}" {% if filters.woreda == woreda.woreda_name %}selected{% endif %}>{{ woreda.woreda_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-2">
+              <div class="form-group">
+                <br>
+                <button class="btn btn-primary" type="submit"><span class="fa fa-filter"></span> Apply</button>
+              </div>
+            </div>
+
+            <div class="col-lg-2">
+              <div class="form-group">
+                <br>
+                <a class="btn btn-danger" href="{% url 'unverified-civilian-victim' %}"><span class="fas fa-1x fa-sync-alt"></span> Reset Filters</a>
+              </div>
+            </div>
+          </form>
+
+          <br>
+
+          <div id="unverified-results" hx-boost="false" hx-select=".unverified-results-fragment">
+            {% include 'public_partials/unverified_results.html' %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </main>
-{% endblock %}
-{% block extra_head %}
-<style>
-  #unverified-filter-spinner { display: none; }
-  #unverified-filter-spinner.htmx-request { display: inline-block; }
-</style>
+
 {% endblock %}
